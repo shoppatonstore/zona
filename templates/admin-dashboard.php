@@ -26,6 +26,55 @@ global $wpdb;
 $message = '';
 $message_type = '';
 
+// Handle question deletion
+if (isset($_POST['delete_question']) && wp_verify_nonce($_POST['delete_question_nonce'], 'zonatech_delete_question')) {
+    $question_id = intval($_POST['question_id']);
+    if ($question_id > 0) {
+        $table_questions = $wpdb->prefix . 'zonatech_questions';
+        $result = $wpdb->delete($table_questions, array('id' => $question_id), array('%d'));
+        if ($result) {
+            $message = 'Question deleted successfully!';
+            $message_type = 'success';
+        } else {
+            $message = 'Failed to delete question.';
+            $message_type = 'error';
+        }
+    }
+}
+
+// Handle question edit/update
+if (isset($_POST['edit_question']) && wp_verify_nonce($_POST['edit_question_nonce'], 'zonatech_edit_question')) {
+    $question_id = intval($_POST['question_id']);
+    if ($question_id > 0) {
+        $table_questions = $wpdb->prefix . 'zonatech_questions';
+        $result = $wpdb->update(
+            $table_questions,
+            array(
+                'exam_type' => sanitize_text_field($_POST['exam_type']),
+                'subject' => sanitize_text_field($_POST['subject']),
+                'year' => intval($_POST['year']),
+                'question_text' => sanitize_textarea_field($_POST['question_text']),
+                'option_a' => sanitize_text_field($_POST['option_a']),
+                'option_b' => sanitize_text_field($_POST['option_b']),
+                'option_c' => sanitize_text_field($_POST['option_c']),
+                'option_d' => sanitize_text_field($_POST['option_d']),
+                'correct_answer' => sanitize_text_field($_POST['correct_answer']),
+                'explanation' => sanitize_textarea_field($_POST['explanation'])
+            ),
+            array('id' => $question_id),
+            array('%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s'),
+            array('%d')
+        );
+        if ($result !== false) {
+            $message = 'Question updated successfully!';
+            $message_type = 'success';
+        } else {
+            $message = 'Failed to update question.';
+            $message_type = 'error';
+        }
+    }
+}
+
 // Handle single question addition
 if (isset($_POST['add_single_question']) && wp_verify_nonce($_POST['question_nonce'], 'zonatech_add_question')) {
     $exam_type = sanitize_text_field($_POST['exam_type']);
@@ -2047,6 +2096,7 @@ $current_user = wp_get_current_user();
                                 <th>Year</th>
                                 <th>Question</th>
                                 <th>Answer</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -2063,6 +2113,28 @@ $current_user = wp_get_current_user();
                                 <td><?php echo esc_html($q->year); ?></td>
                                 <td style="max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><?php echo esc_html(substr($q->question_text, 0, 80)); ?>...</td>
                                 <td><span class="status-badge success"><?php echo esc_html($q->correct_answer); ?></span></td>
+                                <td>
+                                    <div style="display: flex; gap: 5px;">
+                                        <button onclick='viewQuestion(<?php echo wp_json_encode(array(
+                                            "id" => $q->id,
+                                            "exam_type" => $q->exam_type,
+                                            "subject" => $q->subject,
+                                            "year" => $q->year,
+                                            "question_text" => $q->question_text,
+                                            "option_a" => $q->option_a,
+                                            "option_b" => $q->option_b,
+                                            "option_c" => $q->option_c,
+                                            "option_d" => $q->option_d,
+                                            "correct_answer" => $q->correct_answer,
+                                            "explanation" => $q->explanation ?? ""
+                                        )); ?>)' class="btn-admin btn-admin-outline" style="padding: 5px 10px; font-size: 12px;" title="View/Edit">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button onclick="confirmDeleteQuestion(<?php echo intval($q->id); ?>, '<?php echo esc_js(substr($q->question_text, 0, 50)); ?>...')" class="btn-admin" style="padding: 5px 10px; font-size: 12px; background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3);" title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
                             </tr>
                             <?php endforeach; ?>
                         </tbody>
@@ -2665,6 +2737,100 @@ $current_user = wp_get_current_user();
         </div>
     </div>
     
+    <!-- View/Edit Question Modal -->
+    <div class="admin-modal" id="viewQuestionModal">
+        <div class="admin-modal-content" style="max-width: 700px;">
+            <div class="admin-modal-header">
+                <h2><i class="fas fa-edit"></i> View/Edit Question</h2>
+                <button class="admin-modal-close" onclick="closeModal('viewQuestionModal')">&times;</button>
+            </div>
+            
+            <form method="POST" action="">
+                <?php wp_nonce_field('zonatech_edit_question', 'edit_question_nonce'); ?>
+                <input type="hidden" name="question_id" id="edit_question_id">
+                
+                <div class="admin-form-row-3">
+                    <div class="admin-form-group">
+                        <label>Exam Type *</label>
+                        <select name="exam_type" id="edit_exam_type" required>
+                            <option value="jamb">JAMB</option>
+                            <option value="waec">WAEC</option>
+                            <option value="neco">NECO</option>
+                        </select>
+                    </div>
+                    <div class="admin-form-group">
+                        <label>Subject *</label>
+                        <select name="subject" id="edit_subject" required>
+                            <option value="">Select Subject</option>
+                        </select>
+                    </div>
+                    <div class="admin-form-group">
+                        <label>Year *</label>
+                        <select name="year" id="edit_year" required>
+                            <?php for ($y = date('Y'); $y >= 2010; $y--): ?>
+                            <option value="<?php echo $y; ?>"><?php echo $y; ?></option>
+                            <?php endfor; ?>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="admin-form-group">
+                    <label>Question Text *</label>
+                    <textarea name="question_text" id="edit_question_text" required></textarea>
+                </div>
+                
+                <div class="admin-form-row">
+                    <div class="admin-form-group">
+                        <label>Option A *</label>
+                        <input type="text" name="option_a" id="edit_option_a" required>
+                    </div>
+                    <div class="admin-form-group">
+                        <label>Option B *</label>
+                        <input type="text" name="option_b" id="edit_option_b" required>
+                    </div>
+                </div>
+                
+                <div class="admin-form-row">
+                    <div class="admin-form-group">
+                        <label>Option C *</label>
+                        <input type="text" name="option_c" id="edit_option_c" required>
+                    </div>
+                    <div class="admin-form-group">
+                        <label>Option D *</label>
+                        <input type="text" name="option_d" id="edit_option_d" required>
+                    </div>
+                </div>
+                
+                <div class="admin-form-row">
+                    <div class="admin-form-group">
+                        <label>Correct Answer *</label>
+                        <select name="correct_answer" id="edit_correct_answer" required>
+                            <option value="A">A</option>
+                            <option value="B">B</option>
+                            <option value="C">C</option>
+                            <option value="D">D</option>
+                        </select>
+                    </div>
+                    <div class="admin-form-group">
+                        <label>Explanation (Optional)</label>
+                        <input type="text" name="explanation" id="edit_explanation">
+                    </div>
+                </div>
+                
+                <button type="submit" name="edit_question" class="admin-form-submit">
+                    <i class="fas fa-save"></i> Save Changes
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Delete Question Hidden Form -->
+    <form id="deleteQuestionForm" method="POST" action="" style="display: none;">
+        <?php wp_nonce_field('zonatech_delete_question', 'delete_question_nonce'); ?>
+        <input type="hidden" name="question_id" id="delete_question_id">
+        <input type="hidden" name="delete_question" value="1">
+    </form>
+    
     <script>
         function toggleSidebar() {
             document.getElementById('adminSidebar').classList.toggle('open');
@@ -2837,6 +3003,73 @@ $current_user = wp_get_current_user();
             });
             
             return false;
+        }
+        
+        // View/Edit Question Function
+        function viewQuestion(question) {
+            document.getElementById('edit_question_id').value = question.id;
+            document.getElementById('edit_exam_type').value = question.exam_type.toLowerCase();
+            document.getElementById('edit_year').value = question.year;
+            document.getElementById('edit_question_text').value = question.question_text;
+            document.getElementById('edit_option_a').value = question.option_a;
+            document.getElementById('edit_option_b').value = question.option_b;
+            document.getElementById('edit_option_c').value = question.option_c;
+            document.getElementById('edit_option_d').value = question.option_d;
+            document.getElementById('edit_correct_answer').value = question.correct_answer;
+            document.getElementById('edit_explanation').value = question.explanation || '';
+            
+            // Populate subjects dropdown for the selected exam type
+            const examType = question.exam_type.toLowerCase();
+            const subjectSelect = document.getElementById('edit_subject');
+            subjectSelect.innerHTML = '<option value="">Select Subject</option>';
+            
+            const examSubjects = subjects[examType] || [];
+            examSubjects.forEach(subject => {
+                const option = document.createElement('option');
+                option.value = subject;
+                option.textContent = subject;
+                if (subject === question.subject) {
+                    option.selected = true;
+                }
+                subjectSelect.appendChild(option);
+            });
+            
+            // If the subject isn't in the list, add it anyway
+            if (!examSubjects.includes(question.subject)) {
+                const option = document.createElement('option');
+                option.value = question.subject;
+                option.textContent = question.subject;
+                option.selected = true;
+                subjectSelect.appendChild(option);
+            }
+            
+            openModal('viewQuestionModal');
+        }
+        
+        // Update edit form subject dropdown when exam type changes
+        document.getElementById('edit_exam_type')?.addEventListener('change', function() {
+            const subjectSelect = document.getElementById('edit_subject');
+            const currentValue = subjectSelect.value;
+            subjectSelect.innerHTML = '<option value="">Select Subject</option>';
+            
+            const examSubjects = subjects[this.value] || [];
+            examSubjects.forEach(subject => {
+                const option = document.createElement('option');
+                option.value = subject;
+                option.textContent = subject;
+                if (subject === currentValue) {
+                    option.selected = true;
+                }
+                subjectSelect.appendChild(option);
+            });
+        });
+        
+        // Confirm and delete question
+        function confirmDeleteQuestion(questionId, questionPreview) {
+            if (confirm('Are you sure you want to delete this question?\n\n"' + questionPreview + '"\n\nThis action cannot be undone.')) {
+                document.getElementById('delete_question_id').value = questionId;
+                document.getElementById('deleteQuestionForm').submit();
+            }
         }
     </script>
 </body>

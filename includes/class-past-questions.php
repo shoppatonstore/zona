@@ -196,8 +196,14 @@ class ZonaTech_Past_Questions {
     
     /**
      * Check if user has category access in database
+     * Admins have free access to all categories
      */
     public function user_has_category_access($user_id, $exam_type, $category) {
+        // Admins have free access to all categories
+        if (user_can($user_id, 'manage_options')) {
+            return true;
+        }
+        
         global $wpdb;
         
         // Check if the table exists first
@@ -607,8 +613,14 @@ class ZonaTech_Past_Questions {
     /**
      * Check if user has access to a subject (via category or legacy individual access)
      * Note: Compulsory subjects (Mathematics, English) are accessible if user has ANY category
+     * Admins have free access to all subjects
      */
     public function user_has_access($user_id, $exam_type, $subject) {
+        // Admins have free access to all subjects and quizzes
+        if (user_can($user_id, 'manage_options')) {
+            return true;
+        }
+        
         global $wpdb;
         $table_access = $wpdb->prefix . 'zonatech_user_access';
         
