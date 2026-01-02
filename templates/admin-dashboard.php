@@ -59,104 +59,116 @@ if (isset($_POST['add_single_question']) && wp_verify_nonce($_POST['question_non
 // Handle bulk CSV upload
 if (isset($_POST['bulk_upload_questions']) && wp_verify_nonce($_POST['bulk_nonce'], 'zonatech_bulk_upload')) {
     if (!empty($_FILES['csv_file']['tmp_name'])) {
-        $file = $_FILES['csv_file']['tmp_name'];
-        
-        // Read the entire file content to check format
-        $full_content = file_get_contents($file);
-        
-        // Check if this is a document-style CSV (text content, not structured data)
-        // Document-style CSVs typically have numbered questions like "1. Question text"
-        $is_document_style = preg_match('/^\d+\.\s+[A-Za-z]/m', $full_content) && 
-                            preg_match('/^[A-E]\.\s+/m', $full_content);
-        
-        if ($is_document_style) {
-            // Parse as document-style CSV (text with questions and options)
-            // Clean the content - join lines and normalize
-            $lines = explode("\n", $full_content);
-            $clean_lines = array();
-            foreach ($lines as $line) {
-                // Skip comment lines and empty lines
-                $line = trim($line);
-                if (empty($line) || strpos($line, '#') === 0) continue;
-                // Remove trailing commas from CSV format
-                $line = rtrim($line, ',');
-                // Remove quotes
-                $line = trim($line, '"');
-                // Skip download/watermark lines
-                if (stripos($line, 'myschoolgist') !== false || stripos($line, 'Download') !== false) continue;
-                $clean_lines[] = $line;
-            }
-            $content = implode("\n", $clean_lines);
+        try {
+            $file = $_FILES['csv_file']['tmp_name'];
             
-            // Try to detect exam type, subject, and year from content
-            $detected_exam = 'jamb';
-            $detected_subject = 'Use of English';
-            $detected_year = date('Y');
+            // Read the entire file content to check format
+            $full_content = file_get_contents($file);
             
-            // Look for patterns like "USE OF ENGLISH 1978" or "JAMB 2020 Mathematics"
-            if (preg_match('/\b(JAMB|WAEC|NECO)\b/i', $content, $exam_match)) {
-                $detected_exam = strtolower($exam_match[1]);
-            }
-            if (preg_match('/\b(19[7-9]\d|20[0-2]\d)\b/', $content, $year_match)) {
-                $detected_year = intval($year_match[1]);
-            }
-            // Detect subject
-            $subject_patterns = array(
-                'USE OF ENGLISH' => 'Use of English',
-                'ENGLISH LANGUAGE' => 'English Language',
-                'MATHEMATICS' => 'Mathematics',
-                'PHYSICS' => 'Physics',
-                'CHEMISTRY' => 'Chemistry',
-                'BIOLOGY' => 'Biology',
-                'ECONOMICS' => 'Economics',
-                'GOVERNMENT' => 'Government',
-                'LITERATURE' => 'Literature in English',
-                'GEOGRAPHY' => 'Geography',
-                'ACCOUNTING' => 'Accounting',
-                'COMMERCE' => 'Commerce',
-                'CIVIC' => 'Civic Education',
-                'AGRICULTURAL' => 'Agricultural Science',
-                'COMPUTER' => 'Computer Studies',
-                'HISTORY' => 'History',
-            );
-            foreach ($subject_patterns as $pattern => $subject_name) {
-                if (stripos($content, $pattern) !== false) {
-                    $detected_subject = $subject_name;
-                    break;
-                }
-            }
-            
-            // Use the question importer to parse questions
-            $importer = ZonaTech_Question_Importer::get_instance();
-            $questions = $importer->parse_questions($content);
-            
-            // Try to detect answer key in content
-            $answers = $importer->parse_answers($content);
-            if (!empty($answers)) {
-                $questions = $importer->merge_questions_with_answers($questions, $answers);
-            }
-            
-            if (!empty($questions)) {
-                $result = $importer->import_to_database($questions, $detected_exam, $detected_subject, $detected_year);
-                
-                if ($result['success_count'] > 0) {
-                    $message = "Document-style CSV parsed: {$result['success_count']} questions extracted and added successfully!";
-                    $message .= " (Detected: " . strtoupper($detected_exam) . " $detected_subject $detected_year)";
-                    if ($result['skipped'] > 0) {
-                        $message .= " ({$result['skipped']} duplicates skipped)";
-                    }
-                    $message_type = 'success';
-                } else {
-                    $error_details = !empty($result['errors']) ? ' ' . implode('; ', array_slice($result['errors'], 0, 3)) : '';
-                    $message = "Questions were parsed but could not be imported.$error_details";
-                    $message_type = 'error';
-                }
-            } else {
-                $message = "Could not parse questions from the document-style CSV. Please ensure questions are numbered (1., 2., etc.) with options (A., B., C., D.).";
+            if ($full_content === false) {
+                $message = 'Could not read the uploaded file.';
                 $message_type = 'error';
-            }
-        } else {
-            // Parse as structured CSV with column headers
+            } else {
+                // Check if this is a document-style CSV (text content, not structured data)
+                // Document-style CSVs typically have numbered questions like "1. Question text"
+                $is_document_style = preg_match('/^\d+\.\s+[A-Za-z]/m', $full_content) && 
+                                    preg_match('/^[A-E]\.\s+/m', $full_content);
+                
+                if ($is_document_style) {
+                    // Parse as document-style CSV (text with questions and options)
+                    // Clean the content - join lines and normalize
+                    $lines = explode("\n", $full_content);
+                    $clean_lines = array();
+                    foreach ($lines as $line) {
+                        // Skip comment lines and empty lines
+                        $line = trim($line);
+                        if (empty($line) || strpos($line, '#') === 0) continue;
+                        // Remove trailing commas from CSV format
+                        $line = rtrim($line, ',');
+                        // Remove quotes
+                        $line = trim($line, '"');
+                        // Skip download/watermark lines
+                        if (stripos($line, 'myschoolgist') !== false || stripos($line, 'Download') !== false) continue;
+                        $clean_lines[] = $line;
+                    }
+                    $content = implode("\n", $clean_lines);
+                    
+                    // Try to detect exam type, subject, and year from content
+                    $detected_exam = 'jamb';
+                    $detected_subject = 'Use of English';
+                    $detected_year = intval(date('Y'));
+                    
+                    // Look for patterns like "USE OF ENGLISH 1978" or "JAMB 2020 Mathematics"
+                    if (preg_match('/\b(JAMB|WAEC|NECO)\b/i', $content, $exam_match)) {
+                        $detected_exam = strtolower($exam_match[1]);
+                    }
+                    if (preg_match('/\b(19[7-9]\d|20[0-2]\d)\b/', $content, $year_match)) {
+                        $detected_year = intval($year_match[1]);
+                    }
+                    
+                    // Detect subject
+                    $subject_patterns = array(
+                        'USE OF ENGLISH' => 'Use of English',
+                        'ENGLISH LANGUAGE' => 'English Language',
+                        'MATHEMATICS' => 'Mathematics',
+                        'PHYSICS' => 'Physics',
+                        'CHEMISTRY' => 'Chemistry',
+                        'BIOLOGY' => 'Biology',
+                        'ECONOMICS' => 'Economics',
+                        'GOVERNMENT' => 'Government',
+                        'LITERATURE' => 'Literature in English',
+                        'GEOGRAPHY' => 'Geography',
+                        'ACCOUNTING' => 'Accounting',
+                        'COMMERCE' => 'Commerce',
+                        'CIVIC' => 'Civic Education',
+                        'AGRICULTURAL' => 'Agricultural Science',
+                        'COMPUTER' => 'Computer Studies',
+                        'HISTORY' => 'History',
+                    );
+                    foreach ($subject_patterns as $pattern => $subject_name) {
+                        if (stripos($content, $pattern) !== false) {
+                            $detected_subject = $subject_name;
+                            break;
+                        }
+                    }
+                    
+                    // Check if the importer class exists
+                    if (!class_exists('ZonaTech_Question_Importer')) {
+                        $message = "Question importer class not found. Please ensure the plugin is properly installed.";
+                        $message_type = 'error';
+                    } else {
+                        // Use the question importer to parse questions
+                        $importer = ZonaTech_Question_Importer::get_instance();
+                        $questions = $importer->parse_questions($content);
+                        
+                        // Try to detect answer key in content
+                        $answers = $importer->parse_answers($content);
+                        if (!empty($answers)) {
+                            $questions = $importer->merge_questions_with_answers($questions, $answers);
+                        }
+                        
+                        if (!empty($questions)) {
+                            $result = $importer->import_to_database($questions, $detected_exam, $detected_subject, $detected_year);
+                            
+                            if ($result['success_count'] > 0) {
+                                $message = "Document-style CSV parsed: {$result['success_count']} questions extracted and added successfully!";
+                                $message .= " (Detected: " . strtoupper($detected_exam) . " $detected_subject $detected_year)";
+                                if ($result['skipped'] > 0) {
+                                    $message .= " ({$result['skipped']} duplicates skipped)";
+                                }
+                                $message_type = 'success';
+                            } else {
+                                $error_details = !empty($result['errors']) ? ' ' . implode('; ', array_slice($result['errors'], 0, 3)) : '';
+                                $message = "Questions were parsed but could not be imported.$error_details";
+                                $message_type = 'error';
+                            }
+                        } else {
+                            $message = "Could not parse questions from the document-style CSV. Please ensure questions are numbered (1., 2., etc.) with options (A., B., C., D.).";
+                            $message_type = 'error';
+                        }
+                    }
+                } else {
+                    // Parse as structured CSV with column headers
             $handle = fopen($file, 'r');
             $header = fgetcsv($handle); // Get header row
             
@@ -286,7 +298,15 @@ if (isset($_POST['bulk_upload_questions']) && wp_verify_nonce($_POST['bulk_nonce
                 } else {
                     $message_type = 'error';
                 }
+                }
+                }
             }
+        } catch (Exception $e) {
+            $message = 'An error occurred while processing the CSV file: ' . esc_html($e->getMessage());
+            $message_type = 'error';
+        } catch (Error $e) {
+            $message = 'A critical error occurred: ' . esc_html($e->getMessage());
+            $message_type = 'error';
         }
     } else {
         $message = 'Please select a CSV file to upload.';
