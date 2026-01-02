@@ -60,86 +60,88 @@ if (isset($_POST['add_single_question']) && wp_verify_nonce($_POST['question_non
 if (isset($_POST['bulk_upload_questions']) && wp_verify_nonce($_POST['bulk_nonce'], 'zonatech_bulk_upload')) {
     if (!empty($_FILES['csv_file']['tmp_name'])) {
         $file = $_FILES['csv_file']['tmp_name'];
-        $handle = fopen($file, 'r');
-        $header = fgetcsv($handle); // Skip header row
         
-        $table_questions = $wpdb->prefix . 'zonatech_questions';
-        $success_count = 0;
-        $error_count = 0;
+        // Read the entire file content to check format
+        $full_content = file_get_contents($file);
         
-        while (($row = fgetcsv($handle)) !== false) {
-            if (count($row) >= 9) {
-                $result = $wpdb->insert($table_questions, array(
-                    'exam_type' => sanitize_text_field($row[0]),
-                    'subject' => sanitize_text_field($row[1]),
-                    'year' => intval($row[2]),
-                    'question_text' => sanitize_textarea_field($row[3]),
-                    'option_a' => sanitize_text_field($row[4]),
-                    'option_b' => sanitize_text_field($row[5]),
-                    'option_c' => sanitize_text_field($row[6]),
-                    'option_d' => sanitize_text_field($row[7]),
-                    'correct_answer' => sanitize_text_field($row[8]),
-                    'explanation' => isset($row[9]) ? sanitize_textarea_field($row[9]) : '',
-                    'created_at' => current_time('mysql')
-                ));
-                
-                if ($result) {
-                    $success_count++;
-                } else {
-                    $error_count++;
+        // Check if this is a document-style CSV (text content, not structured data)
+        // Document-style CSVs typically have numbered questions like "1. Question text"
+        $is_document_style = preg_match('/^\d+\.\s+[A-Za-z]/m', $full_content) && 
+                            preg_match('/^[A-E]\.\s+/m', $full_content);
+        
+        if ($is_document_style) {
+            // Parse as document-style CSV (text with questions and options)
+            // Clean the content - join lines and normalize
+            $lines = explode("\n", $full_content);
+            $clean_lines = array();
+            foreach ($lines as $line) {
+                // Skip comment lines and empty lines
+                $line = trim($line);
+                if (empty($line) || strpos($line, '#') === 0) continue;
+                // Remove trailing commas from CSV format
+                $line = rtrim($line, ',');
+                // Remove quotes
+                $line = trim($line, '"');
+                // Skip download/watermark lines
+                if (stripos($line, 'myschoolgist') !== false || stripos($line, 'Download') !== false) continue;
+                $clean_lines[] = $line;
+            }
+            $content = implode("\n", $clean_lines);
+            
+            // Try to detect exam type, subject, and year from content
+            $detected_exam = 'jamb';
+            $detected_subject = 'Use of English';
+            $detected_year = date('Y');
+            
+            // Look for patterns like "USE OF ENGLISH 1978" or "JAMB 2020 Mathematics"
+            if (preg_match('/\b(JAMB|WAEC|NECO)\b/i', $content, $exam_match)) {
+                $detected_exam = strtolower($exam_match[1]);
+            }
+            if (preg_match('/\b(19[7-9]\d|20[0-2]\d)\b/', $content, $year_match)) {
+                $detected_year = intval($year_match[1]);
+            }
+            // Detect subject
+            $subject_patterns = array(
+                'USE OF ENGLISH' => 'Use of English',
+                'ENGLISH LANGUAGE' => 'English Language',
+                'MATHEMATICS' => 'Mathematics',
+                'PHYSICS' => 'Physics',
+                'CHEMISTRY' => 'Chemistry',
+                'BIOLOGY' => 'Biology',
+                'ECONOMICS' => 'Economics',
+                'GOVERNMENT' => 'Government',
+                'LITERATURE' => 'Literature in English',
+                'GEOGRAPHY' => 'Geography',
+                'ACCOUNTING' => 'Accounting',
+                'COMMERCE' => 'Commerce',
+                'CIVIC' => 'Civic Education',
+                'AGRICULTURAL' => 'Agricultural Science',
+                'COMPUTER' => 'Computer Studies',
+                'HISTORY' => 'History',
+            );
+            foreach ($subject_patterns as $pattern => $subject_name) {
+                if (stripos($content, $pattern) !== false) {
+                    $detected_subject = $subject_name;
+                    break;
                 }
             }
-        }
-        fclose($handle);
-        
-        $message = "Bulk upload completed: $success_count questions added successfully, $error_count failed.";
-        $message_type = $error_count > 0 ? 'warning' : 'success';
-    } else {
-        $message = 'Please select a CSV file to upload.';
-        $message_type = 'error';
-    }
-}
-
-// Handle DOC/PDF upload with intelligent parsing
-if (isset($_POST['doc_upload_questions']) && wp_verify_nonce($_POST['doc_nonce'], 'zonatech_doc_upload')) {
-    $exam_type = sanitize_text_field($_POST['doc_exam_type']);
-    $subject = sanitize_text_field($_POST['doc_subject']);
-    $year = intval($_POST['doc_year']);
-    
-    if (!empty($_FILES['doc_file']['tmp_name']) && $exam_type && $subject && $year) {
-        $file = $_FILES['doc_file'];
-        $file_ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        
-        // Use the question importer class for better PDF/file handling
-        $importer = ZonaTech_Question_Importer::get_instance();
-        
-        // Read file content using improved extraction
-        $content = '';
-        $extraction_result = $importer->extract_text_from_file($file);
-        
-        if (is_wp_error($extraction_result)) {
-            $message = $extraction_result->get_error_message();
-            $message_type = 'error';
-        } else {
-            $content = $extraction_result['content'];
-        }
-        
-        if (!empty($content)) {
-            // Use the improved parser from the importer class
+            
+            // Use the question importer to parse questions
+            $importer = ZonaTech_Question_Importer::get_instance();
             $questions = $importer->parse_questions($content);
             
-            // Try to detect answer key in the content and merge
+            // Try to detect answer key in content
             $answers = $importer->parse_answers($content);
             if (!empty($answers)) {
                 $questions = $importer->merge_questions_with_answers($questions, $answers);
             }
             
             if (!empty($questions)) {
-                // Import using the importer's database method
-                $result = $importer->import_to_database($questions, $exam_type, $subject, $year);
+                $result = $importer->import_to_database($questions, $detected_exam, $detected_subject, $detected_year);
                 
                 if ($result['success_count'] > 0) {
-                    $message = "Document parsed: {$result['success_count']} questions extracted and added successfully!";
+                    $message = "Document-style CSV parsed: {$result['success_count']} questions extracted and added successfully!";
+                    $message .= " (Detected: " . strtoupper($detected_exam) . " $detected_subject $detected_year)";
                     if ($result['skipped'] > 0) {
                         $message .= " ({$result['skipped']} duplicates skipped)";
                     }
@@ -150,15 +152,144 @@ if (isset($_POST['doc_upload_questions']) && wp_verify_nonce($_POST['doc_nonce']
                     $message_type = 'error';
                 }
             } else {
-                $message = "Could not parse questions from the document. Please ensure your document follows a clear format with numbered questions and lettered options (A, B, C, D, E).";
+                $message = "Could not parse questions from the document-style CSV. Please ensure questions are numbered (1., 2., etc.) with options (A., B., C., D.).";
                 $message_type = 'error';
             }
-        } elseif (!isset($message)) {
-            $message = "Could not extract text from the document. For PDF files, please ensure 'poppler-utils' is installed on the server for better extraction or copy and paste the text manually.";
-            $message_type = 'error';
+        } else {
+            // Parse as structured CSV with column headers
+            $handle = fopen($file, 'r');
+            $header = fgetcsv($handle); // Get header row
+            
+            // Normalize header names to lowercase for matching
+            $header_map = array();
+            if ($header) {
+                foreach ($header as $index => $col_name) {
+                    $header_map[strtolower(trim($col_name))] = $index;
+                }
+            }
+            
+            // Map common column name variations
+            $column_aliases = array(
+                'exam_type' => array('exam_type', 'examtype', 'exam', 'type'),
+                'subject' => array('subject', 'course', 'subject_name'),
+                'year' => array('year', 'exam_year', 'yr'),
+                'question_text' => array('question_text', 'question', 'questiontext', 'questions'),
+                'option_a' => array('option_a', 'optiona', 'a', 'option a', 'opt_a'),
+                'option_b' => array('option_b', 'optionb', 'b', 'option b', 'opt_b'),
+                'option_c' => array('option_c', 'optionc', 'c', 'option c', 'opt_c'),
+                'option_d' => array('option_d', 'optiond', 'd', 'option d', 'opt_d'),
+                'correct_answer' => array('correct_answer', 'correctanswer', 'answer', 'correct', 'ans', 'correct_option'),
+                'explanation' => array('explanation', 'explain', 'solution', 'note')
+            );
+            
+            // Find column indices
+            $columns = array();
+            foreach ($column_aliases as $field => $aliases) {
+                $columns[$field] = null;
+                foreach ($aliases as $alias) {
+                    if (isset($header_map[$alias])) {
+                        $columns[$field] = $header_map[$alias];
+                        break;
+                    }
+                }
+            }
+            
+            // Check if we have the required columns
+            $required = array('exam_type', 'subject', 'year', 'question_text', 'option_a', 'option_b', 'option_c', 'option_d', 'correct_answer');
+            $missing_columns = array();
+            foreach ($required as $field) {
+                if ($columns[$field] === null) {
+                    $missing_columns[] = $field;
+                }
+            }
+            
+            if (!empty($missing_columns)) {
+                fclose($handle);
+                $message = 'CSV is missing required columns: ' . implode(', ', $missing_columns) . '. Required columns: exam_type, subject, year, question_text, option_a, option_b, option_c, option_d, correct_answer. Or use a document-style CSV with numbered questions.';
+                $message_type = 'error';
+            } else {
+                $table_questions = $wpdb->prefix . 'zonatech_questions';
+                $success_count = 0;
+                $error_count = 0;
+                $row_num = 1;
+                $skipped_rows = array();
+                
+                while (($row = fgetcsv($handle)) !== false) {
+                    $row_num++;
+                    
+                    // Extract values using detected column positions
+                    $exam_type = isset($row[$columns['exam_type']]) ? sanitize_text_field(trim($row[$columns['exam_type']])) : '';
+                    $subject = isset($row[$columns['subject']]) ? sanitize_text_field(trim($row[$columns['subject']])) : '';
+                    $year = isset($row[$columns['year']]) ? intval(trim($row[$columns['year']])) : 0;
+                    $question_text = isset($row[$columns['question_text']]) ? sanitize_textarea_field(trim($row[$columns['question_text']])) : '';
+                    $option_a = isset($row[$columns['option_a']]) ? sanitize_text_field(trim($row[$columns['option_a']])) : '';
+                    $option_b = isset($row[$columns['option_b']]) ? sanitize_text_field(trim($row[$columns['option_b']])) : '';
+                    $option_c = isset($row[$columns['option_c']]) ? sanitize_text_field(trim($row[$columns['option_c']])) : '';
+                    $option_d = isset($row[$columns['option_d']]) ? sanitize_text_field(trim($row[$columns['option_d']])) : '';
+                    $correct_answer = isset($row[$columns['correct_answer']]) ? strtoupper(sanitize_text_field(trim($row[$columns['correct_answer']]))) : '';
+                    $explanation = ($columns['explanation'] !== null && isset($row[$columns['explanation']])) ? sanitize_textarea_field(trim($row[$columns['explanation']])) : '';
+                    
+                    // Validate required data - need all 4 options
+                    if (empty($exam_type) || empty($subject) || empty($question_text) || 
+                        empty($option_a) || empty($option_b) || empty($option_c) || empty($option_d)) {
+                        $skipped_rows[] = $row_num;
+                        continue;
+                    }
+                    
+                    // Normalize exam type - skip row if invalid
+                    $exam_type = strtolower($exam_type);
+                    if (!in_array($exam_type, array('jamb', 'waec', 'neco'))) {
+                        $skipped_rows[] = $row_num;
+                        continue;
+                    }
+                    
+                    // Validate correct answer - skip row if invalid
+                    if (!in_array($correct_answer, array('A', 'B', 'C', 'D'))) {
+                        $skipped_rows[] = $row_num;
+                        continue;
+                    }
+                    
+                    // Insert into database
+                    $result = $wpdb->insert($table_questions, array(
+                        'exam_type' => $exam_type,
+                        'subject' => $subject,
+                        'year' => $year > 0 ? $year : intval(date('Y')),
+                        'question_text' => $question_text,
+                        'option_a' => $option_a,
+                        'option_b' => $option_b,
+                        'option_c' => $option_c,
+                        'option_d' => $option_d,
+                        'correct_answer' => $correct_answer,
+                        'explanation' => $explanation,
+                        'created_at' => current_time('mysql')
+                    ));
+                    
+                    if ($result) {
+                        $success_count++;
+                    } else {
+                        $error_count++;
+                    }
+                }
+                fclose($handle);
+                
+                $message = "Bulk upload completed: $success_count questions added successfully";
+                if ($error_count > 0) {
+                    $message .= ", $error_count database errors";
+                }
+                if (!empty($skipped_rows)) {
+                    $message .= ", " . count($skipped_rows) . " rows skipped (missing data)";
+                }
+                $message .= ".";
+                
+                if ($success_count > 0) {
+                    $message_type = ($error_count > 0 || !empty($skipped_rows)) ? 'warning' : 'success';
+                } else {
+                    $message_type = 'error';
+                }
+            }
         }
     } else {
-        $message = 'Please select a file and fill in all required fields (Exam Type, Subject, Year).';
+        $message = 'Please select a CSV file to upload.';
         $message_type = 'error';
     }
 }
@@ -2110,7 +2241,6 @@ $current_user = wp_get_current_user();
             <div class="admin-tabs">
                 <button class="admin-tab active" onclick="switchTab('singleQuestion', this)">Single Question</button>
                 <button class="admin-tab" onclick="switchTab('bulkUpload', this)">Bulk Upload (CSV)</button>
-                <button class="admin-tab" onclick="switchTab('docUpload', this)">Document Upload</button>
             </div>
             
             <!-- Single Question Form -->
@@ -2223,84 +2353,6 @@ $current_user = wp_get_current_user();
                     <p style="font-size: 13px; color: rgba(255,255,255,0.7); line-height: 1.6;">
                         Each row should contain: exam_type (jamb/waec/neco), subject, year, question_text, option_a, option_b, option_c, option_d, correct_answer (A/B/C/D), explanation (optional)
                     </p>
-                </div>
-            </div>
-            
-            <!-- Document Upload Tab -->
-            <div class="tab-content" id="docUpload">
-                <div style="margin-bottom: 20px; padding: 15px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 10px;">
-                    <h4 style="margin-bottom: 10px; color: #10b981;"><i class="fas fa-magic"></i> Smart Document Parser</h4>
-                    <p style="font-size: 13px; color: rgba(255,255,255,0.7); line-height: 1.6;">
-                        Upload a DOC, DOCX, PDF, or TXT file with questions. The system will intelligently extract questions and options.
-                    </p>
-                </div>
-                
-                <form method="POST" action="" enctype="multipart/form-data">
-                    <?php wp_nonce_field('zonatech_doc_upload', 'doc_nonce'); ?>
-                    
-                    <div class="admin-form-row-3">
-                        <div class="admin-form-group">
-                            <label><i class="fas fa-graduation-cap"></i> Exam Type *</label>
-                            <select name="doc_exam_type" id="docExamType" required>
-                                <option value="">Select Exam</option>
-                                <option value="jamb">JAMB</option>
-                                <option value="waec">WAEC</option>
-                                <option value="neco">NECO</option>
-                            </select>
-                        </div>
-                        <div class="admin-form-group">
-                            <label><i class="fas fa-book"></i> Subject *</label>
-                            <select name="doc_subject" id="docSubject" required>
-                                <option value="">Select Subject</option>
-                            </select>
-                        </div>
-                        <div class="admin-form-group">
-                            <label><i class="fas fa-calendar"></i> Year *</label>
-                            <select name="doc_year" required>
-                                <option value="">Select Year</option>
-                                <?php for ($y = date('Y'); $y >= 2010; $y--): ?>
-                                <option value="<?php echo $y; ?>"><?php echo $y; ?></option>
-                                <?php endfor; ?>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div class="file-upload-area" onclick="document.getElementById('docFile').click();" style="margin-top: 15px;">
-                        <i class="fas fa-file-alt"></i>
-                        <p>Click to upload DOC, DOCX, PDF, or TXT file</p>
-                        <small>Questions will be automatically extracted from your document</small>
-                        <input type="file" name="doc_file" id="docFile" accept=".doc,.docx,.pdf,.txt" onchange="handleDocSelect(this)">
-                    </div>
-                    
-                    <p id="selectedDoc" style="text-align: center; color: #10b981; margin-bottom: 15px;"></p>
-                    
-                    <button type="submit" name="doc_upload_questions" class="admin-form-submit" style="background: linear-gradient(135deg, #10b981, #059669);">
-                        <i class="fas fa-magic"></i> Parse & Upload Questions
-                    </button>
-                </form>
-                
-                <div style="margin-top: 25px; padding: 20px; background: rgba(139, 92, 246, 0.1); border-radius: 12px;">
-                    <h4 style="margin-bottom: 15px; color: #a78bfa;"><i class="fas fa-lightbulb"></i> Document Format Tips</h4>
-                    <div style="font-size: 13px; color: rgba(255,255,255,0.8); line-height: 1.8;">
-                        <p style="margin-bottom: 10px;">For best results, format your document like this:</p>
-                        <div style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; font-family: monospace; font-size: 12px;">
-                            <p style="color: #f59e0b;">1. What is the capital of Nigeria?</p>
-                            <p>A. Abuja</p>
-                            <p>B. Lagos</p>
-                            <p>C. Kano</p>
-                            <p>D. Ibadan</p>
-                            <p style="color: #10b981;">Answer: A</p>
-                            <br>
-                            <p style="color: #f59e0b;">2. Which river is the longest in Africa?</p>
-                            <p>A. Niger River</p>
-                            <p>B. Nile River *</p>
-                            <p>C. Congo River</p>
-                            <p>D. Zambezi River</p>
-                        </div>
-                        <p style="margin-top: 15px; color: rgba(255,255,255,0.6);">
-                            <strong>Tips:</strong> Mark correct answers with *, (correct), or "Answer: X" after options.
-                        </p>
-                    </div>
                 </div>
             </div>
         </div>
@@ -2591,14 +2643,6 @@ $current_user = wp_get_current_user();
             }
         }
         
-        // Document file upload handling
-        function handleDocSelect(input) {
-            const fileName = input.files[0]?.name;
-            if (fileName) {
-                document.getElementById('selectedDoc').textContent = 'Selected: ' + fileName;
-            }
-        }
-        
         // Download CSV template
         function downloadCSVTemplate() {
             const headers = 'exam_type,subject,year,question_text,option_a,option_b,option_c,option_d,correct_answer,explanation\n';
@@ -2624,20 +2668,6 @@ $current_user = wp_get_current_user();
         // Update subjects for single question form
         document.querySelector('select[name="exam_type"]')?.addEventListener('change', function() {
             const subjectSelect = document.getElementById('modalSubject');
-            subjectSelect.innerHTML = '<option value="">Select Subject</option>';
-            
-            const examSubjects = subjects[this.value] || [];
-            examSubjects.forEach(subject => {
-                const option = document.createElement('option');
-                option.value = subject;
-                option.textContent = subject;
-                subjectSelect.appendChild(option);
-            });
-        });
-        
-        // Update subjects for document upload form
-        document.getElementById('docExamType')?.addEventListener('change', function() {
-            const subjectSelect = document.getElementById('docSubject');
             subjectSelect.innerHTML = '<option value="">Select Subject</option>';
             
             const examSubjects = subjects[this.value] || [];
