@@ -12,6 +12,14 @@ if (!current_user_can('manage_options')) {
     exit;
 }
 
+// Ensure the Question Importer class is loaded
+if (!class_exists('ZonaTech_Question_Importer')) {
+    $importer_file = dirname(__DIR__) . '/includes/class-question-importer.php';
+    if (file_exists($importer_file)) {
+        require_once $importer_file;
+    }
+}
+
 global $wpdb;
 
 // Handle form submissions
