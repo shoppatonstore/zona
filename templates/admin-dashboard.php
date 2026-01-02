@@ -69,6 +69,7 @@ if (isset($_POST['bulk_upload_questions']) && wp_verify_nonce($_POST['bulk_nonce
     if (!empty($_FILES['csv_file']['tmp_name'])) {
         try {
             $file = $_FILES['csv_file']['tmp_name'];
+            $allow_without_answers = isset($_POST['import_without_answers']) && $_POST['import_without_answers'] === '1';
             
             // Read the entire file content to check format
             $full_content = file_get_contents($file);
@@ -147,31 +148,95 @@ if (isset($_POST['bulk_upload_questions']) && wp_verify_nonce($_POST['bulk_nonce
                     } else {
                         // Use the question importer to parse questions
                         $importer = ZonaTech_Question_Importer::get_instance();
-                        $questions = $importer->parse_questions($content);
                         
-                        // Try to detect answer key in content
-                        $answers = $importer->parse_answers($content);
-                        if (!empty($answers)) {
-                            $questions = $importer->merge_questions_with_answers($questions, $answers);
-                        }
+                        // Parse by year sections (start from 2010 by default)
+                        $year_sections = $importer->parse_by_year($content, 2010);
                         
-                        if (!empty($questions)) {
-                            $result = $importer->import_to_database($questions, $detected_exam, $detected_subject, $detected_year);
+                        if (!empty($year_sections)) {
+                            // Import all year sections
+                            $total_success = 0;
+                            $total_skipped = 0;
+                            $total_errors = 0;
+                            $years_imported = array();
+                            $total_missing_answers = 0;
                             
-                            if ($result['success_count'] > 0) {
-                                $message = "Document-style CSV parsed: {$result['success_count']} questions extracted and added successfully!";
-                                $message .= " (Detected: " . strtoupper($detected_exam) . " $detected_subject $detected_year)";
-                                if ($result['skipped'] > 0) {
-                                    $message .= " ({$result['skipped']} duplicates skipped)";
+                            foreach ($year_sections as $section) {
+                                if (!empty($section['questions'])) {
+                                    $result = $importer->import_to_database(
+                                        $section['questions'],
+                                        $section['exam_type'],
+                                        $section['subject'],
+                                        $section['year'],
+                                        $allow_without_answers
+                                    );
+                                    $total_success += $result['success_count'];
+                                    $total_skipped += $result['skipped'];
+                                    $total_errors += count($result['errors']);
+                                    $total_missing_answers += isset($result['missing_answers']) ? $result['missing_answers'] : 0;
+                                    
+                                    if ($result['success_count'] > 0 && !in_array($section['year'], $years_imported)) {
+                                        $years_imported[] = $section['year'];
+                                    }
                                 }
-                                $message_type = 'success';
+                            }
+                            
+                            if ($total_success > 0) {
+                                sort($years_imported);
+                                $year_range = count($years_imported) > 1 
+                                    ? min($years_imported) . '-' . max($years_imported) 
+                                    : (count($years_imported) === 1 ? $years_imported[0] : '');
+                                $message = "Multi-year import completed: {$total_success} questions extracted from years {$year_range}!";
+                                if ($total_skipped > 0) {
+                                    $message .= " ({$total_skipped} duplicates skipped)";
+                                }
+                                if ($allow_without_answers && $total_missing_answers > 0) {
+                                    $message .= " WARNING: {$total_missing_answers} questions imported without answer keys - please review and edit answers!";
+                                    $message_type = 'warning';
+                                } else {
+                                    $message_type = 'success';
+                                }
                             } else {
-                                $error_details = !empty($result['errors']) ? ' ' . implode('; ', array_slice($result['errors'], 0, 3)) : '';
-                                $message = "Questions were parsed but could not be imported.$error_details";
-                                $message_type = 'error';
+                                // Try old method as fallback - parse entire content
+                                $questions = $importer->parse_questions($content);
+                                $answers = $importer->parse_answers($content);
+                                if (!empty($answers)) {
+                                    $questions = $importer->merge_questions_with_answers($questions, $answers);
+                                }
+                                
+                                if (!empty($questions)) {
+                                    $result = $importer->import_to_database($questions, $detected_exam, $detected_subject, $detected_year, $allow_without_answers);
+                                    
+                                    if ($result['success_count'] > 0) {
+                                        $message = "Import completed: {$result['success_count']} questions extracted!";
+                                        $message .= " (Detected: " . strtoupper($detected_exam) . " $detected_subject $detected_year)";
+                                        if ($result['skipped'] > 0) {
+                                            $message .= " ({$result['skipped']} duplicates skipped)";
+                                        }
+                                        $missing = isset($result['missing_answers']) ? $result['missing_answers'] : 0;
+                                        if ($allow_without_answers && $missing > 0) {
+                                            $message .= " WARNING: {$missing} questions imported without answer keys - please review!";
+                                            $message_type = 'warning';
+                                        } else {
+                                            $message_type = 'success';
+                                        }
+                                    } else {
+                                        $error_details = !empty($result['errors']) ? ' First 3 errors: ' . implode('; ', array_slice($result['errors'], 0, 3)) : '';
+                                        $total_parsed = isset($result['total_parsed']) ? $result['total_parsed'] : 0;
+                                        $missing = isset($result['missing_answers']) ? $result['missing_answers'] : 0;
+                                        if ($missing > 0 && !$allow_without_answers) {
+                                            $message = "Found {$total_parsed} questions but {$missing} are missing answer keys. Check the 'Import without answer keys' option to import anyway.";
+                                        } else {
+                                            $message = "Questions were found but could not be imported.$error_details";
+                                        }
+                                        $message_type = 'error';
+                                    }
+                                } else {
+                                    $message = "Could not parse questions. Make sure your document has numbered questions (1., 2., etc.) with options (A., B., C., D.) and answer keys in tabular format.";
+                                    $message_type = 'error';
+                                }
                             }
                         } else {
-                            $message = "Could not parse questions from the document-style CSV. Please ensure questions are numbered (1., 2., etc.) with options (A., B., C., D.).";
+                            $message = "No year sections found (years 2010 onwards). Make sure your document has section headers like 'USE OF ENGLISH 2010'.";
                             $message_type = 'error';
                         }
                     }
@@ -2365,11 +2430,18 @@ $current_user = wp_get_current_user();
                     <div class="file-upload-area" onclick="document.getElementById('csvFile').click();">
                         <i class="fas fa-cloud-upload-alt"></i>
                         <p>Click to upload CSV file</p>
-                        <small>Format: exam_type, subject, year, question_text, option_a, option_b, option_c, option_d, correct_answer, explanation</small>
+                        <small>Supports: Structured CSV with columns OR Document-style CSV with numbered questions</small>
                         <input type="file" name="csv_file" id="csvFile" accept=".csv" onchange="handleFileSelect(this)">
                     </div>
                     
                     <p id="selectedFile" style="text-align: center; color: #8b5cf6; margin-bottom: 15px;"></p>
+                    
+                    <div style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" name="import_without_answers" id="import_without_answers" value="1">
+                        <label for="import_without_answers" style="font-size: 14px; color: rgba(255,255,255,0.8); cursor: pointer;">
+                            Import questions even without answer keys (answers default to 'A' - must be edited later)
+                        </label>
+                    </div>
                     
                     <button type="submit" name="bulk_upload_questions" class="admin-form-submit">
                         <i class="fas fa-upload"></i> Upload Questions
@@ -2379,7 +2451,8 @@ $current_user = wp_get_current_user();
                 <div style="margin-top: 20px; padding: 15px; background: rgba(59, 130, 246, 0.1); border-radius: 10px;">
                     <h4 style="margin-bottom: 10px; color: #3b82f6;"><i class="fas fa-info-circle"></i> CSV Format Guide</h4>
                     <p style="font-size: 13px; color: rgba(255,255,255,0.7); line-height: 1.6;">
-                        Each row should contain: exam_type (jamb/waec/neco), subject, year, question_text, option_a, option_b, option_c, option_d, correct_answer (A/B/C/D), explanation (optional)
+                        <strong>Option 1 - Structured CSV:</strong> Each row with columns: exam_type (jamb/waec/neco), subject, year, question_text, option_a, option_b, option_c, option_d, correct_answer (A/B/C/D), explanation (optional)<br><br>
+                        <strong>Option 2 - Document-style:</strong> Questions starting from 2010 with numbered format (1., 2., etc.) and options (A., B., C., D.). Answer keys should be in tabular format like "1. D    2. A    3. C" with 3+ answers per line.
                     </p>
                 </div>
             </div>

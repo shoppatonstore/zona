@@ -154,8 +154,8 @@ class ZonaTech_Question_Importer {
     /**
      * Parse answer key from text content
      * Format expected:
-     * - "1. A", "2. B", "3. C" etc.
-     * - Or tabular format: "1. D    2. A    3. C    4. D"
+     * - Tabular format: "1. D    2. A    3. C    4. D" (multiple answers per line)
+     * - Look for SOLUTIONS/ANSWERS sections before parsing
      * 
      * @param string $content The raw text content
      * @return array Answers indexed by question number
@@ -166,17 +166,33 @@ class ZonaTech_Question_Importer {
         // Normalize line endings and spaces
         $content = str_replace(array("\r\n", "\r"), "\n", $content);
         
-        // Try to find answer patterns
-        // Pattern 1: "1. A" or "1. D" format (with periods or without)
-        // Pattern 2: Tabular format with multiple answers per line
+        // Split into lines
+        $lines = explode("\n", $content);
         
-        // First, try to extract all answer patterns
-        preg_match_all('/(\d+)\s*[.\):]?\s*([A-Da-d])\b/i', $content, $matches, PREG_SET_ORDER);
-        
-        foreach ($matches as $match) {
-            $question_number = intval($match[1]);
-            $answer = strtoupper($match[2]);
-            $answers[$question_number] = $answer;
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (empty($line)) continue;
+            
+            // Check if this line looks like an answer key line
+            // Answer key lines have MULTIPLE "number. letter" patterns on the same line
+            // e.g., "1. D    2. A    3. C    4. D    5. B    6. D"
+            // The key is having at least 3 consecutive answer patterns on one line
+            
+            // More strict pattern: number followed by period, then single letter A-E, then either space/tab or end
+            preg_match_all('/(\d{1,3})\.\s*([A-Ea-e])(?=\s|$|,)/i', $line, $matches, PREG_SET_ORDER);
+            
+            // Only consider this an answer line if we have 3+ matches on the same line
+            // This avoids matching option texts like "A. push" or question texts
+            if (count($matches) >= 3) {
+                foreach ($matches as $match) {
+                    $question_number = intval($match[1]);
+                    $answer = strtoupper($match[2]);
+                    // Validate question number is reasonable
+                    if ($question_number >= 1 && $question_number <= 200) {
+                        $answers[$question_number] = $answer;
+                    }
+                }
+            }
         }
         
         return $answers;
@@ -192,6 +208,132 @@ class ZonaTech_Question_Importer {
         // Remove trailing option markers that might be on the same line
         $text = preg_replace('/\s+[A-D]\s*[.\)]\s*$/', '', $text);
         return trim($text);
+    }
+    
+    /**
+     * Parse questions and answers by year sections
+     * Detects year headers like "USE OF ENGLISH 2010" or "2012 JAMB"
+     * 
+     * @param string $content Full document content
+     * @param int $start_year Only include years >= this value (default 2010)
+     * @return array Array of ['year' => int, 'subject' => string, 'exam_type' => string, 'questions' => array, 'answers' => array]
+     */
+    public function parse_by_year($content, $start_year = 2010) {
+        $year_sections = array();
+        
+        // Normalize line endings
+        $content = str_replace(array("\r\n", "\r"), "\n", $content);
+        
+        // Find all year section headers
+        // Patterns like: "USE OF ENGLISH 2010" or "2012 TYPE YELLOW" or "JAMB 2011"
+        $year_pattern = '/^.*?(USE OF ENGLISH|MATHEMATICS|PHYSICS|CHEMISTRY|BIOLOGY|ECONOMICS|GOVERNMENT|LITERATURE|GEOGRAPHY|ACCOUNTING|COMMERCE|CIVIC|AGRICULTURAL|COMPUTER|HISTORY|ENGLISH)\s*(19\d{2}|20[0-2]\d).*$/mi';
+        $year_pattern2 = '/^.*?(19\d{2}|20[0-2]\d)\s*(USE OF ENGLISH|MATHEMATICS|PHYSICS|CHEMISTRY|BIOLOGY|ECONOMICS|GOVERNMENT|LITERATURE|GEOGRAPHY|ACCOUNTING|COMMERCE|CIVIC|AGRICULTURAL|COMPUTER|HISTORY|ENGLISH|JAMB|TYPE).*$/mi';
+        
+        // Split content by year markers
+        preg_match_all($year_pattern, $content, $matches1, PREG_OFFSET_CAPTURE);
+        preg_match_all($year_pattern2, $content, $matches2, PREG_OFFSET_CAPTURE);
+        
+        // Combine and sort by offset
+        $year_markers = array();
+        
+        foreach ($matches1[0] as $i => $match) {
+            $year = intval($matches1[2][$i][0]);
+            $subject = $this->normalize_subject($matches1[1][$i][0]);
+            if ($year >= $start_year) {
+                $year_markers[] = array(
+                    'offset' => $match[1],
+                    'year' => $year,
+                    'subject' => $subject,
+                    'exam_type' => 'jamb'
+                );
+            }
+        }
+        
+        foreach ($matches2[0] as $i => $match) {
+            $year = intval($matches2[1][$i][0]);
+            $subject_or_type = $matches2[2][$i][0];
+            $subject = $this->normalize_subject($subject_or_type);
+            if ($year >= $start_year) {
+                // Check if already added at similar offset (avoid duplicates)
+                $is_duplicate = false;
+                foreach ($year_markers as $existing) {
+                    if (abs($existing['offset'] - $match[1]) < 100 && $existing['year'] === $year) {
+                        $is_duplicate = true;
+                        break;
+                    }
+                }
+                if (!$is_duplicate) {
+                    $year_markers[] = array(
+                        'offset' => $match[1],
+                        'year' => $year,
+                        'subject' => $subject,
+                        'exam_type' => 'jamb'
+                    );
+                }
+            }
+        }
+        
+        // Sort by offset
+        usort($year_markers, function($a, $b) {
+            return $a['offset'] - $b['offset'];
+        });
+        
+        // Extract content for each year section
+        $count = count($year_markers);
+        for ($i = 0; $i < $count; $i++) {
+            $start = $year_markers[$i]['offset'];
+            $end = ($i + 1 < $count) ? $year_markers[$i + 1]['offset'] : strlen($content);
+            
+            $section_content = substr($content, $start, $end - $start);
+            
+            // Parse questions and answers for this section
+            $questions = $this->parse_questions($section_content);
+            $answers = $this->parse_answers($section_content);
+            
+            // Merge answers into questions
+            if (!empty($answers)) {
+                $questions = $this->merge_questions_with_answers($questions, $answers);
+            }
+            
+            $year_sections[] = array(
+                'year' => $year_markers[$i]['year'],
+                'subject' => $year_markers[$i]['subject'],
+                'exam_type' => $year_markers[$i]['exam_type'],
+                'questions' => $questions,
+                'answers' => $answers
+            );
+        }
+        
+        return $year_sections;
+    }
+    
+    /**
+     * Normalize subject name to consistent format
+     */
+    private function normalize_subject($subject) {
+        $subject = strtoupper(trim($subject));
+        $mapping = array(
+            'USE OF ENGLISH' => 'Use of English',
+            'ENGLISH' => 'Use of English',
+            'ENGLISH LANGUAGE' => 'English Language',
+            'MATHEMATICS' => 'Mathematics',
+            'PHYSICS' => 'Physics',
+            'CHEMISTRY' => 'Chemistry',
+            'BIOLOGY' => 'Biology',
+            'ECONOMICS' => 'Economics',
+            'GOVERNMENT' => 'Government',
+            'LITERATURE' => 'Literature in English',
+            'GEOGRAPHY' => 'Geography',
+            'ACCOUNTING' => 'Accounting',
+            'COMMERCE' => 'Commerce',
+            'CIVIC' => 'Civic Education',
+            'AGRICULTURAL' => 'Agricultural Science',
+            'COMPUTER' => 'Computer Studies',
+            'HISTORY' => 'History',
+            'JAMB' => 'Use of English',
+            'TYPE' => 'Use of English'
+        );
+        return isset($mapping[$subject]) ? $mapping[$subject] : 'Use of English';
     }
     
     /**
@@ -217,15 +359,17 @@ class ZonaTech_Question_Importer {
      * @param string $exam_type Exam type (jamb, waec, neco)
      * @param string $subject Subject name
      * @param int $year Year
+     * @param bool $allow_without_answers If true, import questions even without answers (answer set to '?')
      * @return array Result with success count and errors
      */
-    public function import_to_database($questions, $exam_type, $subject, $year) {
+    public function import_to_database($questions, $exam_type, $subject, $year, $allow_without_answers = false) {
         global $wpdb;
         $table_questions = $wpdb->prefix . 'zonatech_questions';
         
         $success_count = 0;
         $errors = array();
         $skipped = 0;
+        $missing_answers = 0;
         
         foreach ($questions as $number => $question) {
             // Validate question has required fields
@@ -242,8 +386,14 @@ class ZonaTech_Question_Importer {
             }
             
             if (empty($question['correct_answer'])) {
-                $errors[] = "Question {$number}: Missing correct answer";
-                continue;
+                $missing_answers++;
+                if (!$allow_without_answers) {
+                    $errors[] = "Question {$number}: Missing correct answer (no answer key found)";
+                    continue;
+                } else {
+                    // Set a placeholder answer that can be updated later
+                    $question['correct_answer'] = 'A'; // Default to A, admin must review
+                }
             }
             
             // Check if question already exists (by question text, exam type, subject, year)
@@ -293,7 +443,8 @@ class ZonaTech_Question_Importer {
             'success_count' => $success_count,
             'skipped' => $skipped,
             'errors' => $errors,
-            'total_parsed' => count($questions)
+            'total_parsed' => count($questions),
+            'missing_answers' => $missing_answers
         );
     }
     
