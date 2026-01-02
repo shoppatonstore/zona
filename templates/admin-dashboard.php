@@ -110,156 +110,51 @@ if (isset($_POST['doc_upload_questions']) && wp_verify_nonce($_POST['doc_nonce']
         $file = $_FILES['doc_file'];
         $file_ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         
-        // Read file content
+        // Use the question importer class for better PDF/file handling
+        $importer = ZonaTech_Question_Importer::get_instance();
+        
+        // Read file content using improved extraction
         $content = '';
+        $extraction_result = $importer->extract_text_from_file($file);
         
-        if ($file_ext === 'txt') {
-            $content = file_get_contents($file['tmp_name']);
-        } elseif ($file_ext === 'docx') {
-            // Parse DOCX file (ZIP with XML)
-            $zip = new ZipArchive();
-            if ($zip->open($file['tmp_name']) === TRUE) {
-                $xml = $zip->getFromName('word/document.xml');
-                $zip->close();
-                
-                // Extract text from XML
-                $xml = str_replace('</w:p>', "\n", $xml);
-                $xml = str_replace('</w:t>', ' ', $xml);
-                $content = strip_tags($xml);
-            }
-        } elseif ($file_ext === 'doc') {
-            // Basic DOC parsing (works for simple documents)
-            $content = '';
-            $fh = fopen($file['tmp_name'], 'r');
-            if ($fh) {
-                while (!feof($fh)) {
-                    $content .= fread($fh, 8192);
-                }
-                fclose($fh);
-                // Filter out binary/special characters
-                $content = preg_replace('/[^\x20-\x7E\n\r]/', '', $content);
-            }
-        } elseif ($file_ext === 'pdf') {
-            // Basic PDF text extraction
-            $content = file_get_contents($file['tmp_name']);
-            // Extract text between stream tags
-            preg_match_all('/stream\s*(.*?)\s*endstream/s', $content, $matches);
-            $text_parts = array();
-            foreach ($matches[1] as $part) {
-                // Try to decode if it's compressed
-                $decoded = @gzuncompress($part);
-                if ($decoded) {
-                    $part = $decoded;
-                }
-                // Extract text from BT/ET blocks
-                preg_match_all('/\((.*?)\)/', $part, $text_matches);
-                $text_parts = array_merge($text_parts, $text_matches[1]);
-            }
-            $content = implode(' ', $text_parts);
-        }
-        
-        // Clean up content
-        $content = trim($content);
-        $content = preg_replace('/\r\n/', "\n", $content);
-        $content = preg_replace('/\r/', "\n", $content);
-        
-        // Intelligent question parsing
-        $table_questions = $wpdb->prefix . 'zonatech_questions';
-        $success_count = 0;
-        $error_count = 0;
-        
-        // Split by question numbers (1., 2., 3., etc. or Q1, Q2, etc. or Question 1, etc.)
-        $patterns = array(
-            '/(?:^|\n)\s*(\d+)\s*[.\)]\s*/m',  // 1. or 1)
-            '/(?:^|\n)\s*Q\.?\s*(\d+)[.\):\s]/im',  // Q1 or Q.1 or Q1:
-            '/(?:^|\n)\s*Question\s*(\d+)[.\):\s]/im',  // Question 1
-        );
-        
-        $questions_raw = array();
-        foreach ($patterns as $pattern) {
-            $parts = preg_split($pattern, $content, -1, PREG_SPLIT_NO_EMPTY);
-            if (count($parts) > 1) {
-                $questions_raw = $parts;
-                break;
-            }
-        }
-        
-        // If no pattern matched, try splitting by double newlines
-        if (empty($questions_raw)) {
-            $questions_raw = preg_split('/\n\s*\n/', $content);
-        }
-        
-        foreach ($questions_raw as $q_block) {
-            $q_block = trim($q_block);
-            if (strlen($q_block) < 20) continue; // Skip too short blocks
-            
-            // Try to parse question and options
-            $question_text = '';
-            $options = array('A' => '', 'B' => '', 'C' => '', 'D' => '');
-            $correct_answer = '';
-            
-            // Pattern to find options
-            $option_pattern = '/(?:^|\n)\s*([A-D])\s*[.\):\s]\s*(.+?)(?=(?:\n\s*[A-D]\s*[.\):\s])|$)/is';
-            preg_match_all($option_pattern, $q_block, $opt_matches, PREG_SET_ORDER);
-            
-            if (!empty($opt_matches)) {
-                // Extract question text (everything before first option)
-                $first_opt_pos = strpos($q_block, $opt_matches[0][0]);
-                if ($first_opt_pos !== false && $first_opt_pos > 0) {
-                    $question_text = trim(substr($q_block, 0, $first_opt_pos));
-                }
-                
-                // Extract options
-                foreach ($opt_matches as $match) {
-                    $letter = strtoupper($match[1]);
-                    $text = trim($match[2]);
-                    // Remove answer indicator if present
-                    if (preg_match('/\*+\s*$/', $text) || preg_match('/\(correct\)/i', $text) || preg_match('/✓|√/', $text)) {
-                        $correct_answer = $letter;
-                        $text = preg_replace('/\*+\s*$/', '', $text);
-                        $text = preg_replace('/\(correct\)/i', '', $text);
-                        $text = preg_replace('/[✓√]/', '', $text);
-                    }
-                    $options[$letter] = trim($text);
-                }
-            }
-            
-            // Check for answer at the end of block (Answer: A or Ans: B)
-            if (empty($correct_answer)) {
-                if (preg_match('/(?:answer|ans)[:\s]*([A-D])/i', $q_block, $ans_match)) {
-                    $correct_answer = strtoupper($ans_match[1]);
-                }
-            }
-            
-            // Only insert if we have question text and at least 2 options
-            if (!empty($question_text) && strlen($options['A']) > 0 && strlen($options['B']) > 0) {
-                $result = $wpdb->insert($table_questions, array(
-                    'exam_type' => $exam_type,
-                    'subject' => $subject,
-                    'year' => $year,
-                    'question_text' => sanitize_textarea_field($question_text),
-                    'option_a' => sanitize_text_field($options['A']),
-                    'option_b' => sanitize_text_field($options['B']),
-                    'option_c' => sanitize_text_field($options['C']),
-                    'option_d' => sanitize_text_field($options['D']),
-                    'correct_answer' => $correct_answer ?: 'A',
-                    'explanation' => '',
-                    'created_at' => current_time('mysql')
-                ));
-                
-                if ($result) {
-                    $success_count++;
-                } else {
-                    $error_count++;
-                }
-            }
-        }
-        
-        if ($success_count > 0) {
-            $message = "Document parsed: $success_count questions extracted and added successfully!";
-            $message_type = 'success';
+        if (is_wp_error($extraction_result)) {
+            $message = $extraction_result->get_error_message();
+            $message_type = 'error';
         } else {
-            $message = "Could not parse questions from the document. Please ensure your document follows a clear format with numbered questions and lettered options (A, B, C, D).";
+            $content = $extraction_result['content'];
+        }
+        
+        if (!empty($content)) {
+            // Use the improved parser from the importer class
+            $questions = $importer->parse_questions($content);
+            
+            // Try to detect answer key in the content and merge
+            $answers = $importer->parse_answers($content);
+            if (!empty($answers)) {
+                $questions = $importer->merge_questions_with_answers($questions, $answers);
+            }
+            
+            if (!empty($questions)) {
+                // Import using the importer's database method
+                $result = $importer->import_to_database($questions, $exam_type, $subject, $year);
+                
+                if ($result['success_count'] > 0) {
+                    $message = "Document parsed: {$result['success_count']} questions extracted and added successfully!";
+                    if ($result['skipped'] > 0) {
+                        $message .= " ({$result['skipped']} duplicates skipped)";
+                    }
+                    $message_type = 'success';
+                } else {
+                    $error_details = !empty($result['errors']) ? ' ' . implode('; ', array_slice($result['errors'], 0, 3)) : '';
+                    $message = "Questions were parsed but could not be imported.$error_details";
+                    $message_type = 'error';
+                }
+            } else {
+                $message = "Could not parse questions from the document. Please ensure your document follows a clear format with numbered questions and lettered options (A, B, C, D, E).";
+                $message_type = 'error';
+            }
+        } elseif (!isset($message)) {
+            $message = "Could not extract text from the document. For PDF files, please ensure 'poppler-utils' is installed on the server for better extraction or copy and paste the text manually.";
             $message_type = 'error';
         }
     } else {
