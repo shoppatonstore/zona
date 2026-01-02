@@ -4,6 +4,7 @@
  * 
  * Handles importing past questions and answers from text/document files.
  * Supports formats like JAMB, WAEC, NECO past questions with separate answer keys.
+ * Supports PDF, TXT, and DOCX file uploads with automatic text extraction.
  */
 
 if (!defined('ABSPATH')) {
@@ -24,6 +25,7 @@ class ZonaTech_Question_Importer {
     private function __construct() {
         add_action('wp_ajax_zonatech_import_questions', array($this, 'ajax_import_questions'));
         add_action('wp_ajax_zonatech_preview_import', array($this, 'ajax_preview_import'));
+        add_action('wp_ajax_zonatech_upload_file', array($this, 'ajax_upload_file'));
     }
     
     /**
@@ -367,30 +369,367 @@ class ZonaTech_Question_Importer {
     }
     
     /**
-     * Extract text from uploaded file
+     * AJAX handler for file upload
+     */
+    public function ajax_upload_file() {
+        check_ajax_referer('zonatech_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'Unauthorized access.'));
+        }
+        
+        if (empty($_FILES['file'])) {
+            wp_send_json_error(array('message' => 'No file uploaded.'));
+        }
+        
+        $file = $_FILES['file'];
+        $file_type = isset($_POST['file_type']) ? sanitize_text_field($_POST['file_type']) : 'questions';
+        
+        // Check for upload errors
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            $error_messages = array(
+                UPLOAD_ERR_INI_SIZE => 'File exceeds server size limit.',
+                UPLOAD_ERR_FORM_SIZE => 'File exceeds form size limit.',
+                UPLOAD_ERR_PARTIAL => 'File was only partially uploaded.',
+                UPLOAD_ERR_NO_FILE => 'No file was uploaded.',
+                UPLOAD_ERR_NO_TMP_DIR => 'Missing temporary folder.',
+                UPLOAD_ERR_CANT_WRITE => 'Failed to write file.',
+                UPLOAD_ERR_EXTENSION => 'File upload blocked by extension.',
+            );
+            $error_msg = isset($error_messages[$file['error']]) ? $error_messages[$file['error']] : 'Unknown upload error.';
+            wp_send_json_error(array('message' => $error_msg));
+        }
+        
+        // Extract text from file
+        $result = $this->extract_text_from_file($file);
+        
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+        
+        $text_content = $result['content'];
+        $detected_metadata = array();
+        
+        // Try to detect metadata from content
+        $detected_metadata = $this->detect_metadata_from_content($text_content, $file['name']);
+        
+        wp_send_json_success(array(
+            'content' => $text_content,
+            'detected' => $detected_metadata,
+            'file_type' => $file_type,
+            'message' => 'File processed successfully.' . (!empty($detected_metadata['confidence']) ? ' ' . ucfirst($detected_metadata['confidence']) . ' confidence in detected metadata.' : '')
+        ));
+    }
+    
+    /**
+     * Detect exam metadata from content and filename
+     * 
+     * @param string $content Text content
+     * @param string $filename Original filename
+     * @return array Detected metadata
+     */
+    public function detect_metadata_from_content($content, $filename = '') {
+        $detected = array(
+            'exam_type' => '',
+            'subject' => '',
+            'year' => '',
+            'confidence' => 'low'
+        );
+        
+        $text = strtolower($content . ' ' . $filename);
+        $confidence_score = 0;
+        
+        // Detect exam type
+        if (preg_match('/\bjamb\b/i', $text) || preg_match('/\butme\b/i', $text)) {
+            $detected['exam_type'] = 'jamb';
+            $confidence_score++;
+        } else if (preg_match('/\bwaec\b/i', $text) || preg_match('/\bwassce\b/i', $text)) {
+            $detected['exam_type'] = 'waec';
+            $confidence_score++;
+        } else if (preg_match('/\bneco\b/i', $text) || preg_match('/\bssce\b/i', $text)) {
+            $detected['exam_type'] = 'neco';
+            $confidence_score++;
+        }
+        
+        // Detect year (look for 4-digit years between 1990 and current year)
+        $current_year = intval(date('Y'));
+        // Build dynamic regex pattern for years 1990-current year
+        if (preg_match_all('/\b(19[9][0-9]|20[0-9]{2})\b/', $text, $year_matches)) {
+            // Get the most likely year (prefer years in valid range)
+            foreach ($year_matches[1] as $year) {
+                $year_int = intval($year);
+                if ($year_int >= 1990 && $year_int <= $current_year) {
+                    $detected['year'] = $year;
+                    $confidence_score++;
+                    break;
+                }
+            }
+        }
+        
+        // Detect subject
+        $subjects_map = array(
+            'use of english' => 'Use of English',
+            'english language' => 'English Language',
+            'mathematics' => 'Mathematics',
+            'maths' => 'Mathematics',
+            'further mathematics' => 'Further Mathematics',
+            'further maths' => 'Further Mathematics',
+            'physics' => 'Physics',
+            'chemistry' => 'Chemistry',
+            'biology' => 'Biology',
+            'economics' => 'Economics',
+            'government' => 'Government',
+            'literature' => 'Literature in English',
+            'literature in english' => 'Literature in English',
+            'commerce' => 'Commerce',
+            'accounting' => 'Accounting',
+            'financial accounting' => 'Financial Accounting',
+            'geography' => 'Geography',
+            'agricultural science' => 'Agricultural Science',
+            'agric' => 'Agricultural Science',
+            'computer science' => 'Computer Science',
+            'computer studies' => 'Computer Studies',
+            'data processing' => 'Data Processing',
+            'civic education' => 'Civic Education',
+            'civics' => 'Civic Education',
+            'history' => 'History',
+            'christian religious studies' => 'Christian Religious Studies',
+            'crs' => 'Christian Religious Studies',
+            'islamic religious studies' => 'Islamic Religious Studies',
+            'irs' => 'Islamic Religious Studies',
+            'home economics' => 'Home Economics',
+            'food and nutrition' => 'Food & Nutrition',
+            'fine arts' => 'Fine Arts',
+            'music' => 'Music',
+            'french' => 'French',
+            'arabic' => 'Arabic',
+            'hausa' => 'Hausa',
+            'igbo' => 'Igbo',
+            'yoruba' => 'Yoruba',
+            'physical education' => 'Physical Education',
+            'health education' => 'Health Education',
+            'health science' => 'Health Science',
+            'technical drawing' => 'Technical Drawing'
+        );
+        
+        foreach ($subjects_map as $pattern => $subject) {
+            if (stripos($text, $pattern) !== false) {
+                $detected['subject'] = $subject;
+                $confidence_score++;
+                break;
+            }
+        }
+        
+        // Set confidence level
+        if ($confidence_score >= 3) {
+            $detected['confidence'] = 'high';
+        } else if ($confidence_score >= 2) {
+            $detected['confidence'] = 'medium';
+        } else {
+            $detected['confidence'] = 'low';
+        }
+        
+        return $detected;
+    }
+    
+    /**
+     * Extract text from uploaded file (PDF, TXT, DOCX)
      * 
      * @param array $file $_FILES array element
-     * @return string|WP_Error Extracted text or error
+     * @return array|WP_Error Extracted text and metadata or error
      */
     public function extract_text_from_file($file) {
         $file_type = wp_check_filetype($file['name']);
-        $allowed_types = array('txt', 'text');
+        $ext = strtolower($file_type['ext']);
+        $allowed_types = array('txt', 'text', 'pdf', 'docx', 'doc');
         
-        if (!in_array(strtolower($file_type['ext']), $allowed_types)) {
-            return new WP_Error('invalid_file_type', 'Only .txt files are allowed.');
+        if (!in_array($ext, $allowed_types)) {
+            return new WP_Error('invalid_file_type', 'Unsupported file type. Allowed: PDF, TXT, DOCX');
         }
         
-        // Read file content
-        $content = file_get_contents($file['tmp_name']);
+        $content = '';
         
-        if ($content === false) {
-            return new WP_Error('read_error', 'Could not read file content.');
+        switch ($ext) {
+            case 'txt':
+            case 'text':
+                $content = $this->extract_from_txt($file['tmp_name']);
+                break;
+            case 'pdf':
+                $content = $this->extract_from_pdf($file['tmp_name']);
+                break;
+            case 'docx':
+                $content = $this->extract_from_docx($file['tmp_name']);
+                break;
+            case 'doc':
+                $content = $this->extract_from_doc($file['tmp_name']);
+                break;
+        }
+        
+        if (is_wp_error($content)) {
+            return $content;
+        }
+        
+        if (empty(trim($content))) {
+            return new WP_Error('empty_content', 'Could not extract any text from the file. Please ensure the file contains readable text.');
         }
         
         // Convert encoding if needed
         $content = mb_convert_encoding($content, 'UTF-8', 'auto');
         
+        return array(
+            'content' => $content,
+            'file_type' => $ext
+        );
+    }
+    
+    /**
+     * Extract text from TXT file
+     */
+    private function extract_from_txt($filepath) {
+        $content = file_get_contents($filepath);
+        if ($content === false) {
+            return new WP_Error('read_error', 'Could not read text file.');
+        }
         return $content;
+    }
+    
+    /**
+     * Extract text from PDF file
+     * Uses a simple text extraction method
+     */
+    private function extract_from_pdf($filepath) {
+        $content = file_get_contents($filepath);
+        if ($content === false) {
+            return new WP_Error('read_error', 'Could not read PDF file.');
+        }
+        
+        // Simple PDF text extraction
+        $text = '';
+        
+        // Try to find text streams in PDF
+        // Look for text between BT (begin text) and ET (end text) markers
+        if (preg_match_all('/BT\s*(.+?)\s*ET/s', $content, $matches)) {
+            foreach ($matches[1] as $text_block) {
+                // Extract text from Tj and TJ operators
+                if (preg_match_all('/\(([^)]+)\)\s*Tj/s', $text_block, $tj_matches)) {
+                    $text .= implode(' ', $tj_matches[1]) . "\n";
+                }
+                if (preg_match_all('/\[(.*?)\]\s*TJ/s', $text_block, $TJ_matches)) {
+                    foreach ($TJ_matches[1] as $TJ_content) {
+                        if (preg_match_all('/\(([^)]+)\)/', $TJ_content, $inner_matches)) {
+                            $text .= implode('', $inner_matches[1]);
+                        }
+                    }
+                    $text .= "\n";
+                }
+            }
+        }
+        
+        // Also try to extract raw text patterns
+        // This catches some PDFs that store text differently
+        if (empty(trim($text))) {
+            // Try to find readable text sequences
+            if (preg_match_all('/stream\s*(.*?)\s*endstream/s', $content, $stream_matches)) {
+                foreach ($stream_matches[1] as $stream) {
+                    // Decompress if using FlateDecode
+                    $decompressed = @gzuncompress($stream);
+                    if ($decompressed !== false) {
+                        $stream = $decompressed;
+                    }
+                    
+                    // Extract text between parentheses
+                    if (preg_match_all('/\(([^)]{2,})\)/', $stream, $paren_matches)) {
+                        foreach ($paren_matches[1] as $match) {
+                            // Filter to printable characters
+                            $filtered = preg_replace('/[^\x20-\x7E\n\r]/', '', $match);
+                            if (strlen($filtered) > 2) {
+                                $text .= $filtered . ' ';
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Clean up the text
+        $text = preg_replace('/\s+/', ' ', $text);
+        $text = preg_replace('/([.?!])\s+/', "$1\n", $text);
+        
+        // If still no text, provide helpful message
+        if (empty(trim($text))) {
+            return new WP_Error(
+                'pdf_extraction_failed', 
+                'Could not extract text from this PDF. The PDF may be scanned/image-based. Please copy the text manually and paste it into the Questions Text field.'
+            );
+        }
+        
+        return $text;
+    }
+    
+    /**
+     * Extract text from DOCX file
+     */
+    private function extract_from_docx($filepath) {
+        // Check if ZipArchive is available
+        if (!class_exists('ZipArchive')) {
+            return new WP_Error('missing_extension', 'ZipArchive extension is required to process DOCX files. Please contact your server administrator.');
+        }
+        
+        // DOCX is a ZIP file containing XML
+        $zip = new ZipArchive();
+        if ($zip->open($filepath) !== true) {
+            return new WP_Error('read_error', 'Could not open DOCX file.');
+        }
+        
+        // Get the main document content
+        $xml_content = $zip->getFromName('word/document.xml');
+        $zip->close();
+        
+        if ($xml_content === false) {
+            return new WP_Error('read_error', 'Could not read DOCX content.');
+        }
+        
+        // Parse XML and extract text
+        $text = '';
+        
+        // Remove XML tags but preserve structure
+        $xml_content = str_replace('</w:p>', "\n", $xml_content);
+        $xml_content = str_replace('</w:t>', ' ', $xml_content);
+        $text = strip_tags($xml_content);
+        
+        // Clean up whitespace
+        $text = preg_replace('/[ \t]+/', ' ', $text);
+        $text = preg_replace('/\n\s*\n/', "\n\n", $text);
+        
+        return trim($text);
+    }
+    
+    /**
+     * Extract text from DOC file (older format)
+     */
+    private function extract_from_doc($filepath) {
+        $content = file_get_contents($filepath);
+        if ($content === false) {
+            return new WP_Error('read_error', 'Could not read DOC file.');
+        }
+        
+        // DOC files are binary, try to extract readable text
+        // This is a simple approach that works for many DOC files
+        $text = '';
+        
+        // Try to find text patterns
+        if (preg_match_all('/[\x20-\x7E]{4,}/', $content, $matches)) {
+            $text = implode(' ', $matches[0]);
+        }
+        
+        if (empty(trim($text))) {
+            return new WP_Error(
+                'doc_extraction_failed',
+                'Could not extract text from this DOC file. Please save it as DOCX or copy the text manually.'
+            );
+        }
+        
+        return $text;
     }
 }
 

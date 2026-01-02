@@ -176,7 +176,8 @@ sort($subjects);
     <div id="tab-import" class="zonatech-tab-content zonatech-admin-section" style="display: none; margin-top: 0; border-top: none;">
         <div class="import-instructions" style="background: #f0f6ff; border-left: 4px solid #2271b1; padding: 15px; margin-bottom: 20px;">
             <h3 style="margin-top: 0;"><span class="dashicons dashicons-info"></span> Import Instructions</h3>
-            <p><strong>Questions Format:</strong> Paste questions with numbered format like:</p>
+            <p><strong>Option 1: Upload Files</strong> - Upload PDF, DOCX, or TXT files containing questions and/or answer keys. The system will attempt to automatically detect exam type, subject, and year from the content.</p>
+            <p><strong>Option 2: Paste Text</strong> - Paste questions with numbered format like:</p>
             <pre style="background: #fff; padding: 10px; border: 1px solid #ddd; margin: 10px 0;">
 81. He was determined to ....... all position into submission?
 A. push
@@ -196,6 +197,36 @@ D. to</pre>
 7. B    8. A    9. B    10. C   11. B   12. D
 ...</pre>
             <p style="margin-bottom: 0;"><em>The system will automatically match question numbers with their answers.</em></p>
+        </div>
+        
+        <!-- File Upload Section -->
+        <div class="file-upload-section" style="background: #f9f9f9; border: 2px dashed #ccc; border-radius: 8px; padding: 20px; margin-bottom: 20px; text-align: center;">
+            <h3 style="margin-top: 0;"><span class="dashicons dashicons-upload"></span> Upload Files (PDF, DOCX, TXT)</h3>
+            <p>Upload files and the system will extract text and try to detect exam type, subject, and year automatically.</p>
+            
+            <div class="form-row" style="justify-content: center; gap: 20px; margin-top: 15px;">
+                <div class="upload-box" style="flex: 1; max-width: 300px;">
+                    <label for="questions_file" style="display: block; margin-bottom: 5px;"><strong>Questions File</strong></label>
+                    <input type="file" id="questions_file" accept=".pdf,.docx,.doc,.txt" style="width: 100%;">
+                    <button type="button" id="upload_questions_btn" class="button button-secondary" style="margin-top: 10px;">
+                        <span class="dashicons dashicons-upload" style="margin-top: 3px;"></span> Extract Questions
+                    </button>
+                </div>
+                <div class="upload-box" style="flex: 1; max-width: 300px;">
+                    <label for="answers_file" style="display: block; margin-bottom: 5px;"><strong>Answer Key File</strong></label>
+                    <input type="file" id="answers_file" accept=".pdf,.docx,.doc,.txt" style="width: 100%;">
+                    <button type="button" id="upload_answers_btn" class="button button-secondary" style="margin-top: 10px;">
+                        <span class="dashicons dashicons-upload" style="margin-top: 3px;"></span> Extract Answers
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Detection Results -->
+            <div id="detection-results" style="display: none; margin-top: 15px; padding: 10px; background: #e7f5e7; border: 1px solid #28a745; border-radius: 4px; text-align: left;">
+                <strong><span class="dashicons dashicons-yes"></span> Detected from file:</strong>
+                <span id="detected-info"></span>
+                <button type="button" id="apply-detected" class="button button-small" style="margin-left: 10px;">Apply to form</button>
+            </div>
         </div>
         
         <form id="zonatech-import-form" class="zonatech-form">
@@ -234,7 +265,7 @@ D. to</pre>
             <div class="form-group">
                 <label>Questions Text <span style="color: red;">*</span></label>
                 <textarea name="questions_text" id="questions_text" rows="12" required 
-                    placeholder="Paste your questions here...
+                    placeholder="Paste your questions here or upload a file above...
                     
 Example:
 81. He was determined to ....... all position into submission?
@@ -253,7 +284,7 @@ D. to"></textarea>
             <div class="form-group">
                 <label>Answer Key (Optional but recommended)</label>
                 <textarea name="answers_text" id="answers_text" rows="6" 
-                    placeholder="Paste answer key here...
+                    placeholder="Paste answer key here or upload a file above...
                     
 Example:
 1. D    2. A    3. C    4. D    5. B    6. D
@@ -354,13 +385,107 @@ Example:
 
 <script>
 jQuery(document).ready(function($) {
+    // Store detected metadata
+    var detectedMetadata = {};
+    
+    // File Upload Handler
+    function handleFileUpload(fileInputId, targetTextareaId, fileType) {
+        var fileInput = document.getElementById(fileInputId);
+        if (!fileInput.files || !fileInput.files[0]) {
+            alert('Please select a file first.');
+            return;
+        }
+        
+        var file = fileInput.files[0];
+        var formData = new FormData();
+        formData.append('file', file);
+        formData.append('action', 'zonatech_upload_file');
+        formData.append('nonce', zonatech_admin.nonce);
+        formData.append('file_type', fileType);
+        
+        var $btn = $('#upload_' + fileType + '_btn');
+        var originalText = $btn.html();
+        $btn.prop('disabled', true).text('Processing...');
+        
+        $.ajax({
+            url: zonatech_admin.ajax_url,
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                $btn.prop('disabled', false).html(originalText);
+                
+                if (response.success) {
+                    // Put extracted text into textarea
+                    $('#' + targetTextareaId).val(response.data.content);
+                    
+                    // Show detected metadata if available
+                    if (response.data.detected) {
+                        detectedMetadata = response.data.detected;
+                        var infoHtml = '';
+                        if (detectedMetadata.exam_type) {
+                            infoHtml += '<strong>Exam:</strong> ' + detectedMetadata.exam_type.toUpperCase() + ' ';
+                        }
+                        if (detectedMetadata.subject) {
+                            infoHtml += '<strong>Subject:</strong> ' + detectedMetadata.subject + ' ';
+                        }
+                        if (detectedMetadata.year) {
+                            infoHtml += '<strong>Year:</strong> ' + detectedMetadata.year + ' ';
+                        }
+                        if (detectedMetadata.confidence) {
+                            infoHtml += '(<em>' + detectedMetadata.confidence + ' confidence</em>)';
+                        }
+                        
+                        if (infoHtml) {
+                            $('#detected-info').html(infoHtml);
+                            $('#detection-results').show();
+                        }
+                    }
+                    
+                    alert('File processed successfully! Text has been extracted and placed in the form.');
+                } else {
+                    alert(response.data.message || 'Error processing file.');
+                }
+            },
+            error: function(xhr, status, error) {
+                $btn.prop('disabled', false).html(originalText);
+                alert('Error uploading file: ' + error);
+            }
+        });
+    }
+    
+    // Upload Questions Button
+    $('#upload_questions_btn').on('click', function() {
+        handleFileUpload('questions_file', 'questions_text', 'questions');
+    });
+    
+    // Upload Answers Button
+    $('#upload_answers_btn').on('click', function() {
+        handleFileUpload('answers_file', 'answers_text', 'answers');
+    });
+    
+    // Apply Detected Metadata
+    $('#apply-detected').on('click', function() {
+        if (detectedMetadata.exam_type) {
+            $('#import_exam_type').val(detectedMetadata.exam_type);
+        }
+        if (detectedMetadata.subject) {
+            $('#import_subject').val(detectedMetadata.subject);
+        }
+        if (detectedMetadata.year) {
+            $('#import_year').val(detectedMetadata.year);
+        }
+        alert('Detected values have been applied to the form. Please verify they are correct.');
+    });
+    
     // Preview Import
     $('#preview-import').on('click', function() {
         var questionsText = $('#questions_text').val().trim();
         var answersText = $('#answers_text').val().trim();
         
         if (!questionsText) {
-            alert('Please paste some questions first.');
+            alert('Please paste some questions first or upload a file.');
             return;
         }
         
@@ -429,7 +554,7 @@ jQuery(document).ready(function($) {
         }
         
         if (!questionsText) {
-            alert('Please paste some questions first.');
+            alert('Please paste some questions first or upload a file.');
             return;
         }
         
