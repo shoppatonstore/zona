@@ -1,6 +1,7 @@
 # Uploaded files and archives
 *.zip
 Screenshot*.png
+*.pdf
 
 # OS generated files
 .DS_Store

@@ -43,11 +43,15 @@ class ZonaTech_Question_Importer {
         // Normalize line endings
         $content = str_replace(array("\r\n", "\r"), "\n", $content);
         
+        // Clean up common PDF artifacts
+        $content = $this->clean_pdf_text($content);
+        
         // Split into lines
         $lines = explode("\n", $content);
         
         $current_question = null;
         $current_question_number = null;
+        $collecting_option = null;
         
         foreach ($lines as $line) {
             $line = trim($line);
@@ -56,59 +60,84 @@ class ZonaTech_Question_Importer {
                 continue;
             }
             
-            // Check if line starts with a question number (e.g., "81. " or "81 ")
-            if (preg_match('/^(\d+)\s*[.\)]\s*(.+)$/i', $line, $matches)) {
-                // Save previous question if exists
-                if ($current_question !== null && !empty($current_question['question_text'])) {
-                    $questions[$current_question_number] = $current_question;
-                }
+            // Check if line starts with a question number (e.g., "81. " or "81 " or "81)")
+            // Also handle cases where the number is at start of line possibly after whitespace
+            if (preg_match('/^(\d{1,3})\s*[.\):\s]\s*(.*)$/i', $line, $matches)) {
+                $potential_number = intval($matches[1]);
+                $rest_of_line = trim($matches[2]);
                 
-                $current_question_number = intval($matches[1]);
-                $question_text = trim($matches[2]);
-                
-                // Check if the question text contains an option at the end (A. B. C. D.)
-                // This handles single-line format
-                $question_text = $this->clean_question_text($question_text);
-                
-                $current_question = array(
-                    'number' => $current_question_number,
-                    'question_text' => $question_text,
-                    'option_a' => '',
-                    'option_b' => '',
-                    'option_c' => '',
-                    'option_d' => '',
-                    'correct_answer' => ''
+                // Verify this looks like a question (has some text and is a reasonable number)
+                // Questions usually start from 1 and shouldn't jump by more than 100
+                $is_likely_question = (
+                    strlen($rest_of_line) > 5 && 
+                    $potential_number >= 1 && 
+                    $potential_number <= 500 &&
+                    // Make sure it's not just an option that starts with a number
+                    !preg_match('/^[A-Ea-e]\s*[.\)]/i', $rest_of_line)
                 );
-                continue;
+                
+                if ($is_likely_question) {
+                    // Save previous question if exists
+                    if ($current_question !== null && !empty($current_question['question_text'])) {
+                        $questions[$current_question_number] = $current_question;
+                    }
+                    
+                    $current_question_number = $potential_number;
+                    $question_text = $this->clean_question_text($rest_of_line);
+                    
+                    $current_question = array(
+                        'number' => $current_question_number,
+                        'question_text' => $question_text,
+                        'option_a' => '',
+                        'option_b' => '',
+                        'option_c' => '',
+                        'option_d' => '',
+                        'option_e' => '',
+                        'correct_answer' => ''
+                    );
+                    $collecting_option = null;
+                    continue;
+                }
             }
             
-            // Check if line is an option (A., B., C., D. or A), B), C), D))
+            // Check if line is an option (A., B., C., D., E. or A), B), C), D), E))
             if ($current_question !== null) {
                 // Match options like "A. text", "A) text", "A text", or just "A. text"
-                if (preg_match('/^([A-Da-d])\s*[.\)]\s*(.+)$/i', $line, $matches)) {
+                // Now including option E for 5-option questions
+                if (preg_match('/^([A-Ea-e])\s*[.\)]\s*(.*)$/i', $line, $matches)) {
                     $option_letter = strtoupper($matches[1]);
                     $option_text = trim($matches[2]);
                     
                     switch ($option_letter) {
                         case 'A':
                             $current_question['option_a'] = $option_text;
+                            $collecting_option = 'option_a';
                             break;
                         case 'B':
                             $current_question['option_b'] = $option_text;
+                            $collecting_option = 'option_b';
                             break;
                         case 'C':
                             $current_question['option_c'] = $option_text;
+                            $collecting_option = 'option_c';
                             break;
                         case 'D':
                             $current_question['option_d'] = $option_text;
+                            $collecting_option = 'option_d';
+                            break;
+                        case 'E':
+                            $current_question['option_e'] = $option_text;
+                            $collecting_option = 'option_e';
                             break;
                     }
                 } else if ($current_question !== null && !empty($current_question['question_text'])) {
-                    // If it's not an option and we have a current question, 
-                    // it might be a continuation of the question text
-                    // But only if we haven't started collecting options yet
+                    // If it's not an option and we have a current question
                     if (empty($current_question['option_a'])) {
+                        // Still collecting question text
                         $current_question['question_text'] .= ' ' . $line;
+                    } else if ($collecting_option !== null && !empty($current_question[$collecting_option])) {
+                        // Continue collecting the current option (multi-line option)
+                        $current_question[$collecting_option] .= ' ' . $line;
                     }
                 }
             }
@@ -205,9 +234,10 @@ class ZonaTech_Question_Importer {
                 continue;
             }
             
+            // Check if we have at least options A-D (E is optional)
             if (empty($question['option_a']) || empty($question['option_b']) || 
                 empty($question['option_c']) || empty($question['option_d'])) {
-                $errors[] = "Question {$number}: Missing one or more options";
+                $errors[] = "Question {$number}: Missing one or more options (A, B, C, D required)";
                 continue;
             }
             
@@ -232,6 +262,12 @@ class ZonaTech_Question_Importer {
                 continue;
             }
             
+            // Handle option E by appending to explanation if present
+            $explanation = '';
+            if (!empty($question['option_e'])) {
+                $explanation = 'E. ' . $question['option_e'];
+            }
+            
             // Insert question
             $result = $wpdb->insert($table_questions, array(
                 'exam_type' => $exam_type,
@@ -243,7 +279,7 @@ class ZonaTech_Question_Importer {
                 'option_c' => sanitize_text_field($question['option_c']),
                 'option_d' => sanitize_text_field($question['option_d']),
                 'correct_answer' => sanitize_text_field($question['correct_answer']),
-                'explanation' => ''
+                'explanation' => $explanation
             ));
             
             if ($result) {
@@ -595,9 +631,29 @@ class ZonaTech_Question_Importer {
     
     /**
      * Extract text from PDF file
-     * Uses a simple text extraction method
+     * Tries pdftotext command first (best quality), falls back to PHP parsing
      */
     private function extract_from_pdf($filepath) {
+        // Validate filepath is a real file
+        if (!file_exists($filepath) || !is_readable($filepath)) {
+            return new WP_Error('read_error', 'Could not read PDF file.');
+        }
+        
+        // First, try using pdftotext command-line tool if available (best quality)
+        $pdftotext_path = $this->find_pdftotext();
+        if ($pdftotext_path && is_executable($pdftotext_path)) {
+            // pdftotext_path is already validated to be from safe paths
+            $escaped_path = escapeshellarg($filepath);
+            $escaped_pdftotext = escapeshellarg($pdftotext_path);
+            $output = shell_exec("$escaped_pdftotext -layout $escaped_path - 2>/dev/null");
+            if (!empty(trim($output))) {
+                // Clean up common PDF watermarks and artifacts
+                $output = $this->clean_pdf_text($output);
+                return $output;
+            }
+        }
+        
+        // Fallback to PHP-based extraction
         $content = file_get_contents($filepath);
         if ($content === false) {
             return new WP_Error('read_error', 'Could not read PDF file.');
@@ -659,11 +715,59 @@ class ZonaTech_Question_Importer {
         if (empty(trim($text))) {
             return new WP_Error(
                 'pdf_extraction_failed', 
-                'Could not extract text from this PDF. The PDF may be scanned/image-based. Please copy the text manually and paste it into the Questions Text field.'
+                'Could not extract text from this PDF. The PDF may use complex encoding. Please install poppler-utils on your server for better PDF support, or copy the text manually and paste it into the Questions Text field.'
             );
         }
         
-        return $text;
+        return $this->clean_pdf_text($text);
+    }
+    
+    /**
+     * Find pdftotext executable path
+     */
+    private function find_pdftotext() {
+        // Only check known safe paths for pdftotext
+        $safe_paths = array(
+            '/usr/bin/pdftotext',
+            '/usr/local/bin/pdftotext',
+        );
+        
+        foreach ($safe_paths as $path) {
+            if (file_exists($path) && is_executable($path)) {
+                return $path;
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Clean PDF text by removing common watermarks and artifacts
+     */
+    private function clean_pdf_text($text) {
+        if (empty($text)) {
+            return '';
+        }
+        
+        // Remove common watermark patterns found in Nigerian exam PDFs
+        $patterns = array(
+            '/myschoolgist\.com/i',  // myschoolgist.com watermark
+            '/ysc\s*ho\s*ol\s*gis\s*t/i',  // broken myschoolgist text
+            '/ww\s*w\.m/i',  // www.m partial
+            '/Download\s+MySchoolGist[^\n]*/i',  // Download links
+            '/https?:\/\/[^\s\n]+/i',  // URLs
+            '/\n\s*\n\s*\n+/',  // Multiple blank lines
+        );
+        
+        foreach ($patterns as $pattern) {
+            $text = preg_replace($pattern, "\n", $text);
+        }
+        
+        // Clean up extra whitespace
+        $text = preg_replace('/[ \t]+/', ' ', $text);
+        $text = preg_replace('/\n\s*\n\s*\n+/', "\n\n", $text);
+        
+        return trim($text);
     }
     
     /**

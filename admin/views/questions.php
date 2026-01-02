@@ -516,6 +516,10 @@ jQuery(document).ready(function($) {
                         html += '<div class="option' + (q.correct_answer === 'B' ? ' correct' : '') + '"><strong>B.</strong> ' + escapeHtml(q.option_b || '(empty)') + '</div>';
                         html += '<div class="option' + (q.correct_answer === 'C' ? ' correct' : '') + '"><strong>C.</strong> ' + escapeHtml(q.option_c || '(empty)') + '</div>';
                         html += '<div class="option' + (q.correct_answer === 'D' ? ' correct' : '') + '"><strong>D.</strong> ' + escapeHtml(q.option_d || '(empty)') + '</div>';
+                        // Show option E if present (for older JAMB format)
+                        if (q.option_e) {
+                            html += '<div class="option' + (q.correct_answer === 'E' ? ' correct' : '') + '"><strong>E.</strong> ' + escapeHtml(q.option_e) + '</div>';
+                        }
                         html += '</div>';
                         if (q.correct_answer) {
                             html += '<p style="margin: 10px 0 0;"><strong>Answer:</strong> <span class="answer-badge">' + q.correct_answer + '</span></p>';
