@@ -26,6 +26,46 @@ global $wpdb;
 $message = '';
 $message_type = '';
 
+// Handle bulk delete questions by subject and year
+if (isset($_POST['delete_subject_year']) && wp_verify_nonce($_POST['delete_subject_year_nonce'], 'zonatech_delete_subject_year')) {
+    $exam_type = sanitize_text_field($_POST['bulk_delete_exam_type']);
+    $subject = sanitize_text_field($_POST['bulk_delete_subject']);
+    $year = intval($_POST['bulk_delete_year']);
+    $current_year = intval(date('Y'));
+    
+    // Validate year is in reasonable range (1970 to current year + 1)
+    if (empty($exam_type) || empty($subject) || $year < 1970 || $year > ($current_year + 1)) {
+        $message = 'Please select valid exam type, subject, and year.';
+        $message_type = 'error';
+    } else {
+        $table_questions = $wpdb->prefix . 'zonatech_questions';
+        
+        // Count how many will be deleted
+        $count = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM $table_questions WHERE exam_type = %s AND subject = %s AND year = %d",
+            $exam_type, $subject, $year
+        ));
+        
+        if ($count > 0) {
+            $result = $wpdb->query($wpdb->prepare(
+                "DELETE FROM $table_questions WHERE exam_type = %s AND subject = %s AND year = %d",
+                $exam_type, $subject, $year
+            ));
+            
+            if ($result !== false) {
+                $message = "Successfully deleted $count " . strtoupper($exam_type) . " $subject $year questions!";
+                $message_type = 'success';
+            } else {
+                $message = 'Failed to delete questions. Database error.';
+                $message_type = 'error';
+            }
+        } else {
+            $message = "No questions found for " . strtoupper($exam_type) . " $subject $year.";
+            $message_type = 'warning';
+        }
+    }
+}
+
 // Handle question deletion
 if (isset($_POST['delete_question']) && wp_verify_nonce($_POST['delete_question_nonce'], 'zonatech_delete_question')) {
     $question_id = intval($_POST['question_id']);
@@ -2104,6 +2144,48 @@ $current_user = wp_get_current_user();
                     <?php endforeach; ?>
                 </div>
                 
+                <!-- Bulk Delete by Subject/Year -->
+                <div class="admin-section" style="margin-bottom: 25px;">
+                    <div class="section-header">
+                        <h2><i class="fas fa-trash-alt"></i> Delete Questions by Subject & Year</h2>
+                    </div>
+                    <form method="POST" action="" onsubmit="return confirmBulkDelete();">
+                        <?php wp_nonce_field('zonatech_delete_subject_year', 'delete_subject_year_nonce'); ?>
+                        <div class="admin-form-row-3">
+                            <div class="admin-form-group">
+                                <label>Exam Type *</label>
+                                <select name="bulk_delete_exam_type" id="bulk_delete_exam_type" required>
+                                    <option value="">Select Exam</option>
+                                    <option value="jamb">JAMB</option>
+                                    <option value="waec">WAEC</option>
+                                    <option value="neco">NECO</option>
+                                </select>
+                            </div>
+                            <div class="admin-form-group">
+                                <label>Subject *</label>
+                                <select name="bulk_delete_subject" id="bulk_delete_subject" required>
+                                    <option value="">Select Subject</option>
+                                </select>
+                            </div>
+                            <div class="admin-form-group">
+                                <label>Year *</label>
+                                <select name="bulk_delete_year" id="bulk_delete_year" required>
+                                    <option value="">Select Year</option>
+                                    <?php for ($y = date('Y'); $y >= 1970; $y--): ?>
+                                    <option value="<?php echo $y; ?>"><?php echo $y; ?></option>
+                                    <?php endfor; ?>
+                                </select>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <button type="submit" name="delete_subject_year" class="btn-admin" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3);">
+                                <i class="fas fa-trash"></i> Delete All Questions
+                            </button>
+                            <span id="bulk_delete_count" style="font-size: 14px; color: rgba(255,255,255,0.6);"></span>
+                        </div>
+                    </form>
+                </div>
+                
                 <div class="admin-section">
                     <div class="section-header">
                         <h2><i class="fas fa-list"></i> Recent Questions</h2>
@@ -3095,6 +3177,34 @@ $current_user = wp_get_current_user();
                 document.getElementById('delete_question_id').value = questionId;
                 document.getElementById('deleteQuestionForm').submit();
             }
+        }
+        
+        // Bulk delete subject dropdown population
+        document.getElementById('bulk_delete_exam_type')?.addEventListener('change', function() {
+            const subjectSelect = document.getElementById('bulk_delete_subject');
+            subjectSelect.innerHTML = '<option value="">Select Subject</option>';
+            
+            const examSubjects = subjects[this.value] || [];
+            examSubjects.forEach(subject => {
+                const option = document.createElement('option');
+                option.value = subject;
+                option.textContent = subject;
+                subjectSelect.appendChild(option);
+            });
+        });
+        
+        // Confirm bulk delete
+        function confirmBulkDelete() {
+            const examType = document.getElementById('bulk_delete_exam_type').value;
+            const subject = document.getElementById('bulk_delete_subject').value;
+            const year = document.getElementById('bulk_delete_year').value;
+            
+            if (!examType || !subject || !year) {
+                alert('Please select exam type, subject, and year.');
+                return false;
+            }
+            
+            return confirm('Are you sure you want to delete ALL ' + examType.toUpperCase() + ' ' + subject + ' ' + year + ' questions?\n\nThis action cannot be undone!');
         }
     </script>
 </body>
