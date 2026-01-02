@@ -31,12 +31,19 @@ if (isset($_POST['delete_question']) && wp_verify_nonce($_POST['delete_question_
     $question_id = intval($_POST['question_id']);
     if ($question_id > 0) {
         $table_questions = $wpdb->prefix . 'zonatech_questions';
-        $result = $wpdb->delete($table_questions, array('id' => $question_id), array('%d'));
-        if ($result) {
-            $message = 'Question deleted successfully!';
-            $message_type = 'success';
+        // Check if question exists first
+        $exists = $wpdb->get_var($wpdb->prepare("SELECT id FROM $table_questions WHERE id = %d", $question_id));
+        if ($exists) {
+            $result = $wpdb->delete($table_questions, array('id' => $question_id), array('%d'));
+            if ($result) {
+                $message = 'Question deleted successfully!';
+                $message_type = 'success';
+            } else {
+                $message = 'Failed to delete question.';
+                $message_type = 'error';
+            }
         } else {
-            $message = 'Failed to delete question.';
+            $message = 'Question not found.';
             $message_type = 'error';
         }
     }
@@ -45,31 +52,44 @@ if (isset($_POST['delete_question']) && wp_verify_nonce($_POST['delete_question_
 // Handle question edit/update
 if (isset($_POST['edit_question']) && wp_verify_nonce($_POST['edit_question_nonce'], 'zonatech_edit_question')) {
     $question_id = intval($_POST['question_id']);
-    if ($question_id > 0) {
+    $correct_answer = strtoupper(sanitize_text_field($_POST['correct_answer']));
+    
+    // Validate correct_answer is A, B, C, or D
+    if (!in_array($correct_answer, array('A', 'B', 'C', 'D'))) {
+        $message = 'Invalid correct answer. Must be A, B, C, or D.';
+        $message_type = 'error';
+    } elseif ($question_id > 0) {
         $table_questions = $wpdb->prefix . 'zonatech_questions';
-        $result = $wpdb->update(
-            $table_questions,
-            array(
-                'exam_type' => sanitize_text_field($_POST['exam_type']),
-                'subject' => sanitize_text_field($_POST['subject']),
-                'year' => intval($_POST['year']),
-                'question_text' => sanitize_textarea_field($_POST['question_text']),
-                'option_a' => sanitize_text_field($_POST['option_a']),
-                'option_b' => sanitize_text_field($_POST['option_b']),
-                'option_c' => sanitize_text_field($_POST['option_c']),
-                'option_d' => sanitize_text_field($_POST['option_d']),
-                'correct_answer' => sanitize_text_field($_POST['correct_answer']),
-                'explanation' => sanitize_textarea_field($_POST['explanation'])
-            ),
-            array('id' => $question_id),
-            array('%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s'),
-            array('%d')
-        );
-        if ($result !== false) {
-            $message = 'Question updated successfully!';
-            $message_type = 'success';
+        // Check if question exists first
+        $exists = $wpdb->get_var($wpdb->prepare("SELECT id FROM $table_questions WHERE id = %d", $question_id));
+        if ($exists) {
+            $result = $wpdb->update(
+                $table_questions,
+                array(
+                    'exam_type' => sanitize_text_field($_POST['exam_type']),
+                    'subject' => sanitize_text_field($_POST['subject']),
+                    'year' => intval($_POST['year']),
+                    'question_text' => sanitize_textarea_field($_POST['question_text']),
+                    'option_a' => sanitize_text_field($_POST['option_a']),
+                    'option_b' => sanitize_text_field($_POST['option_b']),
+                    'option_c' => sanitize_text_field($_POST['option_c']),
+                    'option_d' => sanitize_text_field($_POST['option_d']),
+                    'correct_answer' => $correct_answer,
+                    'explanation' => sanitize_textarea_field($_POST['explanation'])
+                ),
+                array('id' => $question_id),
+                array('%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s'),
+                array('%d')
+            );
+            if ($result !== false) {
+                $message = 'Question updated successfully!';
+                $message_type = 'success';
+            } else {
+                $message = 'Failed to update question.';
+                $message_type = 'error';
+            }
         } else {
-            $message = 'Failed to update question.';
+            $message = 'Question not found.';
             $message_type = 'error';
         }
     }
@@ -3066,7 +3086,12 @@ $current_user = wp_get_current_user();
         
         // Confirm and delete question
         function confirmDeleteQuestion(questionId, questionPreview) {
-            if (confirm('Are you sure you want to delete this question?\n\n"' + questionPreview + '"\n\nThis action cannot be undone.')) {
+            // Sanitize the question preview to prevent XSS in confirm dialog
+            const sanitizedPreview = String(questionPreview).replace(/[<>'"&]/g, function(char) {
+                const entities = {'<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;', '&': '&amp;'};
+                return entities[char] || char;
+            });
+            if (confirm('Are you sure you want to delete this question?\n\n"' + sanitizedPreview + '"\n\nThis action cannot be undone.')) {
                 document.getElementById('delete_question_id').value = questionId;
                 document.getElementById('deleteQuestionForm').submit();
             }
