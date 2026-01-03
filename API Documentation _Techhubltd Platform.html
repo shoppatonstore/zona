@@ -1,0 +1,1509 @@
+<!DOCTYPE html>
+<!-- saved from url=(0039)https://gverifyer.com/documentation.php -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Documentation |Techhubltd Platform</title>
+    <!-- Google Fonts -->
+    <link href="./API Documentation _Techhubltd Platform_files/css2" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="./API Documentation _Techhubltd Platform_files/all.min.css">
+    <!-- Highlight.js for code syntax highlighting -->
+    <link rel="stylesheet" href="./API Documentation _Techhubltd Platform_files/github-dark.min.css">
+    <script src="./API Documentation _Techhubltd Platform_files/highlight.min.js.download"></script>
+    <style>
+        :root {
+            --primary: #55968f;
+            --primary-dark: #0b5ed7;
+            --primary-light: #e8f2ff;
+            --text: #122033;
+            --text-muted: #6b778c;
+            --bg: #f5f7fb;
+            --card: #ffffff;
+            --border: #e6e9f0;
+            --danger: #d61f1f;
+            --danger-light: #ffe8e8;
+            --success: #16a34a;
+            --radius: 12px;
+            --shadow: 0 4px 20px rgba(16, 24, 40, 0.08);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            display: flex;
+            min-height: 100vh;
+            background-color: var(--bg);
+            color: var(--text);
+            transition: var(--transition);
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: 70px;
+            background: white;
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            transition: var(--transition);
+            overflow: hidden;
+            position: fixed;
+            height: 100vh;
+            z-index: 100;
+            box-shadow: var(--shadow);
+        }
+
+        .sidebar.expanded {
+            width: 240px;
+        }
+
+        .sidebar-header {
+            padding: 20px 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .sidebar.expanded .sidebar-header {
+            align-items: flex-start;
+            padding: 20px 15px 15px;
+        }
+
+        .toggle-btn {
+            color: var(--primary);
+            font-size: 20px;
+            cursor: pointer;
+            margin-bottom: 25px;
+            padding: 5px;
+            transition: var(--transition);
+            align-self: flex-start;
+        }
+
+        .toggle-btn:hover {
+            transform: rotate(90deg);
+        }
+
+        .logo {
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .logo img {
+            width: 40px;
+            border-radius: 50%;
+            transition: var(--transition);
+        }
+
+        .sidebar.expanded .logo img {
+            width: 50px;
+        }
+
+        .sidebar-nav {
+            width: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
+            flex: 1;
+            padding: 0 15px 20px;
+        }
+
+        .sidebar-nav::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .sidebar-nav::-webkit-scrollbar-thumb {
+            background: var(--primary-light);
+            border-radius: 10px;
+        }
+
+        .sidebar-nav::-webkit-scrollbar-thumb:hover {
+            background: var(--primary);
+        }
+
+        .sidebar-nav a {
+            color: #55968f;
+            text-decoration: none;
+            font-size: 16px;
+            margin: 8px 0;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            white-space: nowrap;
+            padding: 10px 12px;
+            border-radius: var(--radius);
+            transition: var(--transition);
+        }
+
+        .sidebar-nav a:hover {
+            background-color: var(--primary-light);
+            color: var(--primary);
+            transform: translateX(5px);
+        }
+
+        .sidebar-nav a.active {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        .sidebar-nav a i {
+            font-size: 20px;
+            min-width: 30px;
+            text-align: center;
+        }
+
+        .sidebar-nav a span {
+            display: none;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .sidebar.expanded .sidebar-nav a span {
+            display: inline;
+        }
+
+        /* Main Content */
+        .main {
+            flex: 1;
+            margin-left: 70px;
+            transition: var(--transition);
+            padding: 20px;
+        }
+
+        .sidebar.expanded ~ .main {
+            margin-left: 240px;
+        }
+        
+        /* Submenu Styles */
+        .submenu {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease;
+            margin-left: 20px;
+            border-left: 2px solid var(--primary-light);
+        }
+
+        .submenu.open {
+            max-height: 500px;
+        }
+
+        .submenu a {
+            font-size: 14px !important;
+            padding: 8px 12px !important;
+            margin: 4px 0 !important;
+            color: var(--text-muted) !important;
+        }
+
+        .submenu a:hover {
+            color: var(--primary) !important;
+            background-color: transparent !important;
+            transform: translateX(3px) !important;
+        }
+
+        .submenu a.active {
+            color: var(--primary) !important;
+            font-weight: 600;
+            background-color: transparent !important;
+        }
+
+        .has-submenu {
+            position: relative;
+        }
+
+        .has-submenu::after {
+            content: '\f107';
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            position: absolute;
+            right: 15px;
+            transition: transform 0.3s ease;
+        }
+
+        .has-submenu.open::after {
+            transform: rotate(180deg);
+        }
+
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Hero Section */
+        .hero {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: var(--shadow);
+        }
+
+        .hero h1 {
+            color: var(--primary);
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .hero p {
+            color: var(--text-muted);
+            margin-bottom: 20px;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        /* Card */
+        .card {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 25px;
+            box-shadow: var(--shadow);
+            margin-bottom: 25px;
+        }
+
+        .card h3 {
+            font-size: 20px;
+            margin-bottom: 20px;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card h3 i {
+            color: var(--primary);
+        }
+
+        /* API Documentation Styles */
+        .api-section {
+            margin-bottom: 30px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .api-header {
+            background: var(--primary-light);
+            padding: 15px 20px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: var(--transition);
+        }
+
+        .api-header:hover {
+            background: #e0ecff;
+        }
+
+        .api-header h4 {
+            color: var(--primary);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .api-content {
+            padding: 0;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .api-content.open {
+            max-height: 3000px;
+            padding: 20px;
+        }
+
+        .endpoint-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: var(--radius);
+            margin-bottom: 20px;
+        }
+
+        .endpoint-method {
+            display: inline-block;
+            padding: 4px 8px;
+            background: var(--primary);
+            color: white;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 10px;
+        }
+
+        .endpoint-url {
+            font-family: 'Courier New', monospace;
+            color: var(--text);
+        }
+
+        .service-tiers {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .service-tier {
+            padding: 8px 15px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: var(--transition);
+            font-weight: 500;
+        }
+
+        .service-tier.active {
+            border-color: var(--primary);
+            background: var(--primary-light);
+            color: var(--primary);
+        }
+
+        .service-tier.premium {
+            border-color: #ffd700;
+            background: #fff9e6;
+        }
+
+        .service-tier.standard {
+            border-color: #c0c0c0;
+            background: #f8f9fa;
+        }
+
+        .service-tier.regular {
+            border-color: #cd7f32;
+            background: #fef8e6;
+        }
+
+        .code-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 15px;
+        }
+
+        .code-tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            border-bottom: 2px solid transparent;
+            transition: var(--transition);
+        }
+
+        .code-tab.active {
+            border-bottom-color: var(--primary);
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .code-content {
+            display: none;
+        }
+
+        .code-content.active {
+            display: block;
+        }
+
+        pre {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: var(--radius);
+            overflow-x: auto;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .param-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+
+        .param-table th {
+            background: var(--primary-light);
+            padding: 10px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .param-table td {
+            padding: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .param-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .required {
+            color: var(--danger);
+            font-weight: 600;
+        }
+
+        .response-codes {
+            margin-top: 20px;
+        }
+
+        .response-code {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 4px;
+            background: #f8f9fa;
+        }
+
+        .code-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 10px;
+            min-width: 60px;
+            text-align: center;
+        }
+
+        .code-success {
+            background: #16a34a;
+            color: white;
+        }
+
+        .code-error {
+            background: #dc2626;
+            color: white;
+        }
+
+        .code-warning {
+            background: #f59e0b;
+            color: white;
+        }
+
+        /* Mobile menu button */
+        .mobile-menu-btn {
+            display: none;
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            z-index: 101;
+            background: var(--primary);
+            color: white;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        /* Overlay for mobile */
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 99;
+        }
+
+        .overlay.active {
+            display: block;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 992px) {
+            .sidebar {
+                width: 70px;
+            }
+            
+            .sidebar.expanded {
+                width: 240px;
+            }
+            
+            .main {
+                margin-left: 70px;
+            }
+            
+            .sidebar.expanded ~ .main {
+                margin-left: 240px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                width: 240px;
+            }
+            
+            .sidebar.expanded {
+                transform: translateX(0);
+            }
+            
+            .main {
+                margin-left: 0 !important;
+                width: 100%;
+            }
+            
+            .mobile-menu-btn {
+                display: flex;
+            }
+
+            .code-tabs {
+                flex-direction: column;
+            }
+
+            .code-tab {
+                text-align: left;
+            }
+
+            .service-tiers {
+                flex-direction: column;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .container {
+                padding: 0;
+            }
+            
+            .hero h1 {
+                font-size: 24px;
+            }
+            
+            .card {
+                padding: 20px;
+            }
+            
+            .main {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+<!-- Mobile Menu Button -->
+<div class="mobile-menu-btn" id="mobile-menu-btn">
+    <i class="fas fa-bars"></i>
+</div>
+
+<!-- Overlay for mobile -->
+<div class="overlay" id="overlay"></div>
+
+<!-- Sidebar -->
+<aside class="sidebar" id="sidebar">
+    <div class="toggle-btn" id="toggle-sidebar">
+        <i class="fa-solid fa-bars"></i>
+    </div>
+    <div class="logo">
+        <img src="./API Documentation _Techhubltd Platform_files/logo.jpg" alt="Logo">
+    </div>
+    <nav class="sidebar-nav">
+        <a href="https://gverifyer.com/dashboard.php"><i class="fa-solid fa-table-columns"></i><span>DASHBOARD</span></a>
+  
+        <!-- NIMC Services with Dropdown -->
+        <a href="javascript:void(0)" class="has-submenu" id="nimc-services">
+            <i class="fa-solid fa-id-card"></i><span>NIMC SERVICES</span>
+        </a>
+        <div class="submenu" id="nimc-submenu">
+            <a href="https://gverifyer.com/nin_verification.php"><i class="fa-solid fa-id-card"></i><span>NIN Verification</span></a>
+            <a href="https://gverifyer.com/nin_verification.php"><i class="fa-solid fa-pen"></i><span>NIN Personalisation</span></a>
+            <a href="https://gverifyer.com/ipe_clearance.php"><i class="fa-solid fa-user-shield"></i><span>IPE Clearance</span></a>
+            <a href="https://gverifyer.com/nin_modifications.php"><i class="fa-solid fa-pen-to-square"></i><span>NIN Modification</span></a>
+            <a href="https://gverifyer.com/nin_validations.php"><i class="fa-solid fa-check"></i><span>NIN Validation</span></a>
+        </div>
+        
+        <!-- BVN Services with Dropdown -->
+        <a href="javascript:void(0)" class="has-submenu" id="bvn-services">
+            <i class="fa-solid fa-credit-card"></i><span>BVN SERVICES</span>
+        </a>
+        <div class="submenu" id="bvn-submenu">
+            <a href="https://gverifyer.com/bvn_verification.php"><i class="fa-solid fa-id-card"></i><span>BVN Verification</span></a>
+            <a href="https://gverifyer.com/bvn_retrieval.php"><i class="fa-solid fa-user-check"></i><span>BVN Retrieval</span></a>
+             <a href="https://gverifyer.com/bvn_modifications.php"><i class="fa-solid fa-pen-to-square"></i><span>BVN Modification</span></a>
+              <a href="https://gverifyer.com/bvn_user_creation.php"><i class="fa-solid fa-id-card"></i><span>BVN User Creation</span></a>
+        </div>
+        
+        <!-- New Menu Items: Data, Airtime, CAC, Newspaper -->
+        <a href="https://gverifyer.com/data.php"><i class="fa-solid fa-database"></i><span>DATA</span></a>
+        <a href="https://gverifyer.com/airtime.php"><i class="fa-solid fa-phone"></i><span>AIRTIME</span></a>
+        <a href="https://gverifyer.com/cac_registration.php"><i class="fa-solid fa-building"></i><span>CAC</span></a>
+        <a href="https://gverifyer.com/news_paper_publication.php"><i class="fa-solid fa-newspaper"></i><span>NEWSPAPER</span></a>
+        <a href="https://gverifyer.com/profile.php"><i class="fa-solid fa-user"></i><span>PROFILE</span></a>
+    
+        
+        <!-- Transactions with Submenu -->
+        <a href="javascript:void(0)" class="has-submenu" id="transactions-menu">
+            <i class="fa-solid fa-arrow-rotate-left"></i><span>TRANSACTIONS</span>
+        </a>
+        <div class="submenu" id="transactions-submenu">
+            <a href="https://gverifyer.com/verification_summary.php"><i class="fa-solid fa-money-bill-transfer"></i><span>Funding History</span></a>
+            <a href="https://gverifyer.com/verification_summary.php"><i class="fa-solid fa-file-lines"></i><span>Verification History</span></a>
+            <a href="https://gverifyer.com/all_orders_history.php"><i class="fa-solid fa-list"></i><span>All Orders History</span></a>
+            <a href="https://gverifyer.com/nin_modification_history.php"><i class="fa-solid fa-id-card"></i><span>NIN Modification History</span></a>
+            <a href="https://gverifyer.com/bvn_modification_history.php"><i class="fa-solid fa-credit-card"></i><span>BVN Modification History</span></a>
+            <a href="https://gverifyer.com/ipe_history.php"><i class="fa-solid fa-user-shield"></i><span>IPE History</span></a>
+            <a href="https://gverifyer.com/validation_history.php"><i class="fa-solid fa-check"></i><span>Validation History</span></a>
+            <a href="https://gverifyer.com/bvn_user_creation_history.php"><i class="fa-solid fa-magnifying-glass"></i><span>BVN Retrieval History</span></a>
+            <a href="https://gverifyer.com/bvn_user_creation.php"><i class="fa-solid fa-user-plus"></i><span>BVN User Creation</span></a>
+            <a href="https://gverifyer.com/cac_history.php"><i class="fa-solid fa-building"></i><span>CAC History</span></a>
+            <a href="https://gverifyer.com/newspaper_history.php"><i class="fa-solid fa-newspaper"></i><span>Newspaper History</span></a>
+            <a href="https://gverifyer.com/airtime_history.php"><i class="fa-solid fa-phone"></i><span>Airtime History</span></a>
+            <a href="https://gverifyer.com/data_history.php"><i class="fa-solid fa-database"></i><span>Data History</span></a>
+        </div>
+
+        <!-- Developer Documentation -->
+      <a href="https://gverifyer.com/api_summary.php"><i class="fa-solid fa-code"></i><span>API Calls History</span></a>
+         <a href="https://gverifyer.com/documentation.php" class="active"><i class="fa-solid fa-code"></i><span>DEVELOPER DOCS</span></a>
+        
+        <a href="https://gverifyer.com/logout.php"><i class="fa-solid fa-right-from-bracket"></i><span>LOGOUT</span></a>
+    </nav>
+</aside>
+
+<!-- Main Content -->
+<main class="main">
+    <div class="container">
+        <section class="hero">
+            <h1>Developer Documentation</h1>
+            <p>Comprehensive API documentation for NIN verification slips, BVN verification slips, and IPE clearance services. Integrate seamlessly with our secure APIs.</p>
+        </section>
+
+        <section class="card">
+            <h3><i class="fas fa-key"></i> API Authentication</h3>
+            <p>All API requests require authentication using your API key. Include it in the request payload as shown below.</p>
+            
+            <div class="endpoint-info">
+                <span class="endpoint-method">PARAMETER</span>
+                <span class="endpoint-url">api_key: "YOUR_API_KEY_HERE"</span>
+            </div>
+
+            <div class="code-tabs">
+                <button class="code-tab active" data-tab="auth-php">PHP</button>
+                <button class="code-tab" data-tab="auth-js">JavaScript</button>
+                <button class="code-tab" data-tab="auth-python">Python</button>
+            </div>
+
+            <div class="code-content active" id="auth-php">
+                <pre><code class="language-php hljs"><span class="hljs-comment">// PHP Example</span>
+<span class="hljs-variable">$apiKey</span> = <span class="hljs-string">'YOUR_API_KEY_HERE'</span>;
+<span class="hljs-variable">$url</span> = <span class="hljs-string">'https://gverifyer.com/api/verification/nin_by_nin.php'</span>;
+
+<span class="hljs-variable">$payload</span> = <span class="hljs-title function_ invoke__">json_encode</span>([
+    <span class="hljs-string">'api_key'</span> =&gt; <span class="hljs-variable">$apiKey</span>,
+    <span class="hljs-string">'nin'</span> =&gt; <span class="hljs-string">'12345678901'</span>
+]);</code></pre>
+            </div>
+
+            <div class="code-content" id="auth-js">
+                <pre><code class="language-javascript hljs"><span class="hljs-comment">// JavaScript Example</span>
+<span class="hljs-keyword">const</span> apiKey = <span class="hljs-string">'YOUR_API_KEY_HERE'</span>;
+<span class="hljs-keyword">const</span> url = <span class="hljs-string">'https://gverifyer.com/api/verification/nin_by_nin.php'</span>;
+
+<span class="hljs-keyword">const</span> payload = {
+    <span class="hljs-attr">api_key</span>: apiKey,
+    <span class="hljs-attr">nin</span>: <span class="hljs-string">'12345678901'</span>
+};</code></pre>
+            </div>
+
+            <div class="code-content" id="auth-python">
+                <pre><code class="language-python hljs"><span class="hljs-comment"># Python Example</span>
+<span class="hljs-keyword">import</span> requests
+<span class="hljs-keyword">import</span> json
+
+api_key = <span class="hljs-string">'YOUR_API_KEY_HERE'</span>
+url = <span class="hljs-string">'https://gverifyer.com/api/verification/nin_by_nin.php'</span>
+
+payload = {
+    <span class="hljs-string">'api_key'</span>: api_key,
+    <span class="hljs-string">'nin'</span>: <span class="hljs-string">'12345678901'</span>
+}</code></pre>
+            </div>
+        </section>
+
+        <!-- NIN Verification by NIN -->
+        <section class="card">
+            <h3><i class="fas fa-id-card"></i> NIN Verification Slips by NIN Number</h3>
+            <p>Generate NIN verification slips using the 11-digit NIN number. Three slip tiers available.</p>
+            
+            <div class="service-tiers">
+                <div class="service-tier premium active" data-tier="premium">Premium Slip</div>
+                <div class="service-tier standard" data-tier="standard">Standard Slip</div>
+                <div class="service-tier regular" data-tier="regular">Regular Slip</div>
+            </div>
+
+            <div class="api-section">
+                <div class="api-header" onclick="toggleApiSection(&#39;nin-nin&#39;)">
+                    <h4><i class="fas fa-fingerprint"></i> NIN Verification by NIN Number</h4>
+                    <i class="fas fa-chevron-up"></i>
+                </div>
+                <div class="api-content open" id="nin-nin">
+                    <div class="endpoint-info">
+                        <span class="endpoint-method">POST</span>
+                        <span class="endpoint-url" id="nin-endpoint">https://gverifyer.com/api/verification/nin_by_nin.php</span>
+                    </div>
+
+                    <h5>Request Parameters</h5>
+                    <table class="param-table">
+                        <thead>
+                            <tr>
+                                <th>Parameter</th>
+                                <th>Type</th>
+                                <th>Required</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>api_key</td>
+                                <td>string</td>
+                                <td><span class="required">Yes</span></td>
+                                <td>Your API authentication key</td>
+                            </tr>
+                            <tr>
+                                <td>nin</td>
+                                <td>string</td>
+                                <td><span class="required">Yes</span></td>
+                                <td>11-digit NIN number</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="code-tabs">
+                        <button class="code-tab active" data-tab="nin-request">Request</button>
+                        <button class="code-tab" data-tab="nin-response">Response</button>
+                        <button class="code-tab" data-tab="nin-php">PHP Example</button>
+                    </div>
+
+                    <div class="code-content active" id="nin-request">
+                        <pre><code class="language-json hljs"><span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">"api_key"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"YOUR_API_KEY_HERE"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"nin"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"12345678901"</span>
+<span class="hljs-punctuation">}</span></code></pre>
+                    </div>
+
+                    <div class="code-content" id="nin-response">
+                        <pre><code class="language-json hljs"><span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">"status"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"success"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"response_code"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"00"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"user_data"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+        <span class="hljs-attr">"nin"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"12345678901"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"first_name"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"JOHN"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"last_name"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"DOE"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"middle_name"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"MICHAEL"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"gender"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"MALE"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"date_of_birth"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"15-05-1985"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"phone_number"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"08012345678"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"address"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"123 Sample Street, Lagos"</span>
+    <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"message"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"PDF generated successfully"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"pdf_base64"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"base64_encoded_pdf_data_here..."</span>
+<span class="hljs-punctuation">}</span></code></pre>
+                    </div>
+
+                    <div class="code-content" id="nin-php">
+                        <pre><code class="language-php hljs"><span class="hljs-variable">$apiKey</span> = <span class="hljs-string">"YOUR_API_KEY_HERE"</span>;
+<span class="hljs-variable">$nin</span> = <span class="hljs-string">"12345678901"</span>; <span class="hljs-comment">// your NIN</span>
+
+<span class="hljs-variable">$url</span> = <span class="hljs-string">'https://gverifyer.com/api/verification/nin_by_nin.php'</span>;
+
+<span class="hljs-comment">// Make API request</span>
+<span class="hljs-variable">$payload</span> = <span class="hljs-title function_ invoke__">json_encode</span>([
+    <span class="hljs-string">'api_key'</span> =&gt; <span class="hljs-variable">$apiKey</span>,
+    <span class="hljs-string">'nin'</span> =&gt; <span class="hljs-variable">$nin</span>
+]);
+
+<span class="hljs-variable">$ch</span> = <span class="hljs-title function_ invoke__">curl_init</span>(<span class="hljs-variable">$url</span>);
+<span class="hljs-title function_ invoke__">curl_setopt_array</span>(<span class="hljs-variable">$ch</span>, [
+    CURLOPT_RETURNTRANSFER =&gt; <span class="hljs-literal">true</span>,
+    CURLOPT_POST =&gt; <span class="hljs-literal">true</span>,
+    CURLOPT_POSTFIELDS =&gt; <span class="hljs-variable">$payload</span>,
+    CURLOPT_HTTPHEADER =&gt; [
+        <span class="hljs-string">'Content-Type: application/json'</span>,
+        <span class="hljs-string">'Content-Length: '</span> . <span class="hljs-title function_ invoke__">strlen</span>(<span class="hljs-variable">$payload</span>)
+    ]
+]);
+
+<span class="hljs-variable">$response</span> = <span class="hljs-title function_ invoke__">curl_exec</span>(<span class="hljs-variable">$ch</span>);
+<span class="hljs-variable">$httpCode</span> = <span class="hljs-title function_ invoke__">curl_getinfo</span>(<span class="hljs-variable">$ch</span>, CURLINFO_HTTP_CODE);
+<span class="hljs-variable">$curlError</span> = <span class="hljs-title function_ invoke__">curl_error</span>(<span class="hljs-variable">$ch</span>);
+<span class="hljs-title function_ invoke__">curl_close</span>(<span class="hljs-variable">$ch</span>);
+
+<span class="hljs-comment">// Handle response</span>
+<span class="hljs-keyword">if</span> (<span class="hljs-variable">$curlError</span>) {
+    <span class="hljs-keyword">echo</span> <span class="hljs-string">"API connection failed: "</span> . <span class="hljs-variable">$curlError</span>;
+    <span class="hljs-keyword">exit</span>;
+}
+
+<span class="hljs-variable">$apiResponse</span> = <span class="hljs-title function_ invoke__">json_decode</span>(<span class="hljs-variable">$response</span>, <span class="hljs-literal">true</span>);
+
+<span class="hljs-keyword">if</span> (<span class="hljs-variable">$apiResponse</span>[<span class="hljs-string">'status'</span>] === <span class="hljs-string">'success'</span> &amp;&amp; !<span class="hljs-keyword">empty</span>(<span class="hljs-variable">$apiResponse</span>[<span class="hljs-string">'pdf_base64'</span>])) {
+    <span class="hljs-comment">// Decode and save PDF</span>
+    <span class="hljs-variable">$pdfData</span> = <span class="hljs-title function_ invoke__">base64_decode</span>(<span class="hljs-variable">$apiResponse</span>[<span class="hljs-string">'pdf_base64'</span>]);
+    <span class="hljs-variable">$fileName</span> = <span class="hljs-string">"nin_slip_"</span> . <span class="hljs-variable">$nin</span> . <span class="hljs-string">".pdf"</span>;
+    <span class="hljs-title function_ invoke__">file_put_contents</span>(<span class="hljs-variable">$fileName</span>, <span class="hljs-variable">$pdfData</span>);
+    <span class="hljs-keyword">echo</span> <span class="hljs-string">"PDF saved successfully: "</span> . <span class="hljs-variable">$fileName</span>;
+} <span class="hljs-keyword">else</span> {
+    <span class="hljs-keyword">echo</span> <span class="hljs-string">"Error: "</span> . <span class="hljs-variable">$apiResponse</span>[<span class="hljs-string">'message'</span>];
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- NIN Verification by Phone -->
+        <section class="card">
+            <h3><i class="fas fa-phone"></i> NIN Verification Slips by Phone Number</h3>
+            <p>Generate NIN verification slips using registered phone number. Three slip tiers available.</p>
+            
+            <div class="service-tiers">
+                <div class="service-tier premium active" data-tier="phone-premium">Premium Slip</div>
+                <div class="service-tier standard" data-tier="phone-standard">Standard Slip</div>
+                <div class="service-tier regular" data-tier="phone-regular">Regular Slip</div>
+            </div>
+
+            <div class="api-section">
+                <div class="api-header" onclick="toggleApiSection(&#39;nin-phone&#39;)">
+                    <h4><i class="fas fa-mobile-alt"></i> NIN Verification by Phone Number</h4>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="api-content" id="nin-phone">
+                    <div class="endpoint-info">
+                        <span class="endpoint-method">POST</span>
+                        <span class="endpoint-url" id="phone-endpoint">https://gverifyer.com/api/verification/nin_by_phone.php.php</span>
+                    </div>
+
+                    <h5>Request Parameters</h5>
+                    <table class="param-table">
+                        <thead>
+                            <tr>
+                                <th>Parameter</th>
+                                <th>Type</th>
+                                <th>Required</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>api_key</td>
+                                <td>string</td>
+                                <td><span class="required">Yes</span></td>
+                                <td>Your API authentication key</td>
+                            </tr>
+                            <tr>
+                                <td>phone</td>
+                                <td>string</td>
+                                <td><span class="required">Yes</span></td>
+                                <td>11-digit phone number (e.g., 08012345678)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="code-tabs">
+                        <button class="code-tab active" data-tab="phone-request">Request</button>
+                        <button class="code-tab" data-tab="phone-response">Response</button>
+                    </div>
+
+                    <div class="code-content active" id="phone-request">
+                        <pre><code class="language-json hljs"><span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">"api_key"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"YOUR_API_KEY_HERE"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"phone"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"08012345678"</span>
+<span class="hljs-punctuation">}</span></code></pre>
+                    </div>
+
+                    <div class="code-content" id="phone-response">
+                        <pre><code class="language-json hljs"><span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">"status"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"success"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"response_code"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"00"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"user_data"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+        <span class="hljs-attr">"nin"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"12345678901"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"first_name"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"JOHN"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"last_name"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"DOE"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"middle_name"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"MICHAEL"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"gender"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"MALE"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"date_of_birth"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"15-05-1985"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"phone_number"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"08012345678"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"address"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"123 Sample Street, Lagos"</span>
+    <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"message"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"PDF generated successfully"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"pdf_base64"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"base64_encoded_pdf_data_here..."</span>
+<span class="hljs-punctuation">}</span></code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- NIN Verification by Demographic -->
+        <section class="card">
+            <h3><i class="fas fa-user-circle"></i> NIN Verification Slips by Demographic Details</h3>
+            <p>Generate NIN verification slips using personal demographic information. Three slip tiers available.</p>
+            
+            <div class="service-tiers">
+                <div class="service-tier premium active" data-tier="demo-premium">Premium Slip</div>
+                <div class="service-tier standard" data-tier="demo-standard">Standard Slip</div>
+                <div class="service-tier regular" data-tier="demo-regular">Regular Slip</div>
+            </div>
+
+            <div class="api-section">
+                <div class="api-header" onclick="toggleApiSection(&#39;nin-demographic&#39;)">
+                    <h4><i class="fas fa-users"></i> NIN Verification by Demographic Details</h4>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="api-content" id="nin-demographic">
+                    <div class="endpoint-info">
+                        <span class="endpoint-method">POST</span>
+                        <span class="endpoint-url" id="demo-endpoint">https://gverifyer.com/api/verification/nin_by_demo.php</span>
+                    </div>
+
+                    <h5>Request Parameters</h5>
+                    <table class="param-table">
+                        <thead>
+                            <tr>
+                                <th>Parameter</th>
+                                <th>Type</th>
+                                <th>Required</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>api_key</td>
+                                <td>string</td>
+                                <td><span class="required">Yes</span></td>
+                                <td>Your API authentication key</td>
+                            </tr>
+                            <tr>
+                                <td>firstname</td>
+                                <td>string</td>
+                                <td><span class="required">Yes</span></td>
+                                <td>Individual's first name</td>
+                            </tr>
+                            <tr>
+                                <td>lastname</td>
+                                <td>string</td>
+                                <td><span class="required">Yes</span></td>
+                                <td>Individual's last name</td>
+                            </tr>
+                            <tr>
+                                <td>dob</td>
+                                <td>string</td>
+                                <td><span class="required">Yes</span></td>
+                                <td>Date of birth (DD-MM-YYYY format)</td>
+                            </tr>
+                            <tr>
+                                <td>gender</td>
+                                <td>string</td>
+                                <td>No</td>
+                                <td>Gender (MALE/FEMALE)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="code-tabs">
+                        <button class="code-tab active" data-tab="demo-request">Request</button>
+                        <button class="code-tab" data-tab="demo-response">Response</button>
+                        <button class="code-tab" data-tab="demo-php">PHP Example</button>
+                    </div>
+
+                    <div class="code-content active" id="demo-request">
+                        <pre><code class="language-json hljs"><span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">"api_key"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"YOUR_API_KEY_HERE"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"firstname"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"JOHN"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"lastname"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"DOE"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"dob"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"15-05-1985"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"gender"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"MALE"</span>
+<span class="hljs-punctuation">}</span></code></pre>
+                    </div>
+
+                    <div class="code-content" id="demo-response">
+                        <pre><code class="language-json hljs"><span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">"status"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"success"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"response_code"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"00"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"user_data"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+        <span class="hljs-attr">"nin"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"12345678901"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"first_name"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"JOHN"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"last_name"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"DOE"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"middle_name"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"MICHAEL"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"gender"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"MALE"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"date_of_birth"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"15-05-1985"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"phone_number"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"08012345678"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"address"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"123 Sample Street, Lagos"</span>
+    <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"message"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"PDF generated successfully"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"pdf_base64"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"base64_encoded_pdf_data_here..."</span>
+<span class="hljs-punctuation">}</span></code></pre>
+                    </div>
+
+                    <div class="code-content" id="demo-php">
+                        <pre><code class="language-php hljs"><span class="hljs-variable">$apiKey</span> = <span class="hljs-string">"YOUR_API_KEY_HERE"</span>;
+<span class="hljs-variable">$firstName</span> = <span class="hljs-string">"JOHN"</span>;
+<span class="hljs-variable">$lastName</span> = <span class="hljs-string">"DOE"</span>;
+<span class="hljs-variable">$dob</span> = <span class="hljs-string">"1985-05-15"</span>; <span class="hljs-comment">// yyyy-mm-dd from form</span>
+<span class="hljs-variable">$gender</span> = <span class="hljs-string">"MALE"</span>;
+
+<span class="hljs-comment">// Convert DOB from yyyy-mm-dd to dd-mm-yyyy</span>
+<span class="hljs-variable">$formattedDob</span> = <span class="hljs-title function_ invoke__">date</span>(<span class="hljs-string">"d-m-Y"</span>, <span class="hljs-title function_ invoke__">strtotime</span>(<span class="hljs-variable">$dob</span>));
+
+<span class="hljs-variable">$url</span> = <span class="hljs-string">'https://gverifyer.com/api/verification/nin_by_demo.php'</span>;
+
+<span class="hljs-variable">$payload</span> = <span class="hljs-title function_ invoke__">json_encode</span>([
+    <span class="hljs-string">'api_key'</span> =&gt; <span class="hljs-variable">$apiKey</span>,
+    <span class="hljs-string">'firstname'</span> =&gt; <span class="hljs-variable">$firstName</span>,
+    <span class="hljs-string">'lastname'</span> =&gt; <span class="hljs-variable">$lastName</span>,
+    <span class="hljs-string">'dob'</span> =&gt; <span class="hljs-variable">$formattedDob</span>,
+    <span class="hljs-string">'gender'</span> =&gt; <span class="hljs-variable">$gender</span>
+]);
+
+<span class="hljs-variable">$ch</span> = <span class="hljs-title function_ invoke__">curl_init</span>(<span class="hljs-variable">$url</span>);
+<span class="hljs-title function_ invoke__">curl_setopt_array</span>(<span class="hljs-variable">$ch</span>, [
+    CURLOPT_RETURNTRANSFER =&gt; <span class="hljs-literal">true</span>,
+    CURLOPT_POST =&gt; <span class="hljs-literal">true</span>,
+    CURLOPT_POSTFIELDS =&gt; <span class="hljs-variable">$payload</span>,
+    CURLOPT_HTTPHEADER =&gt; [
+        <span class="hljs-string">'Content-Type: application/json'</span>,
+        <span class="hljs-string">'Content-Length: '</span> . <span class="hljs-title function_ invoke__">strlen</span>(<span class="hljs-variable">$payload</span>)
+    ],
+    CURLOPT_SSL_VERIFYPEER =&gt; <span class="hljs-literal">false</span>,
+    CURLOPT_SSL_VERIFYHOST =&gt; <span class="hljs-literal">false</span>
+]);
+
+<span class="hljs-variable">$response</span> = <span class="hljs-title function_ invoke__">curl_exec</span>(<span class="hljs-variable">$ch</span>);
+<span class="hljs-variable">$httpCode</span> = <span class="hljs-title function_ invoke__">curl_getinfo</span>(<span class="hljs-variable">$ch</span>, CURLINFO_HTTP_CODE);
+<span class="hljs-variable">$curlError</span> = <span class="hljs-title function_ invoke__">curl_error</span>(<span class="hljs-variable">$ch</span>);
+<span class="hljs-title function_ invoke__">curl_close</span>(<span class="hljs-variable">$ch</span>);
+
+<span class="hljs-keyword">if</span> (!<span class="hljs-keyword">empty</span>(<span class="hljs-variable">$curlError</span>)) {
+    <span class="hljs-keyword">echo</span> <span class="hljs-string">"cURL Error: <span class="hljs-subst">$curlError</span>"</span>;
+} <span class="hljs-keyword">elseif</span> (<span class="hljs-variable">$httpCode</span> !== <span class="hljs-number">200</span>) {
+    <span class="hljs-keyword">echo</span> <span class="hljs-string">"HTTP Error: <span class="hljs-subst">$httpCode</span>"</span>;
+} <span class="hljs-keyword">else</span> {
+    <span class="hljs-variable">$result</span> = <span class="hljs-title function_ invoke__">json_decode</span>(<span class="hljs-variable">$response</span>, <span class="hljs-literal">true</span>);
+    
+    <span class="hljs-keyword">if</span> (!<span class="hljs-keyword">empty</span>(<span class="hljs-variable">$result</span>[<span class="hljs-string">'pdf_base64'</span>])) {
+        <span class="hljs-variable">$pdfData</span> = <span class="hljs-title function_ invoke__">base64_decode</span>(<span class="hljs-variable">$result</span>[<span class="hljs-string">'pdf_base64'</span>]);
+        <span class="hljs-variable">$filePath</span> = <span class="hljs-string">'nin_slip_'</span> . <span class="hljs-title function_ invoke__">time</span>() . <span class="hljs-string">'.pdf'</span>;
+        <span class="hljs-title function_ invoke__">file_put_contents</span>(<span class="hljs-variable">$filePath</span>, <span class="hljs-variable">$pdfData</span>);
+        <span class="hljs-keyword">echo</span> <span class="hljs-string">"PDF saved successfully: <span class="hljs-subst">$filePath</span>"</span>;
+    } <span class="hljs-keyword">else</span> {
+        <span class="hljs-keyword">echo</span> <span class="hljs-string">"Error: "</span> . <span class="hljs-variable">$result</span>[<span class="hljs-string">'message'</span>];
+    }
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- BVN Verification -->
+        <section class="card">
+            <h3><i class="fas fa-credit-card"></i> BVN Verification Slips</h3>
+            <p>Generate BVN verification slips using 11-digit BVN number. Two service tiers available.</p>
+            
+            <div class="service-tiers">
+                <div class="service-tier premium active" data-tier="bvn-premium">Premium Slip</div>
+                <div class="service-tier standard" data-tier="bvn-standard">Standard Slip</div>
+            </div>
+
+            <div class="api-section">
+                <div class="api-header" onclick="toggleApiSection(&#39;bvn-verify&#39;)">
+                    <h4><i class="fas fa-user-check"></i> BVN Verification by BVN Number</h4>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="api-content" id="bvn-verify">
+                    <div class="endpoint-info">
+                        <span class="endpoint-method">POST</span>
+                        <span class="endpoint-url" id="bvn-endpoint">https://gverifyer.com/api/verification/bvn_by_bvn.php</span>
+                    </div>
+
+                    <h5>Request Parameters</h5>
+                    <table class="param-table">
+                        <thead>
+                            <tr>
+                                <th>Parameter</th>
+                                <th>Type</th>
+                                <th>Required</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>api_key</td>
+                                <td>string</td>
+                                <td><span class="required">Yes</span></td>
+                                <td>Your API authentication key</td>
+                            </tr>
+                            <tr>
+                                <td>bvn</td>
+                                <td>string</td>
+                                <td><span class="required">Yes</span></td>
+                                <td>11-digit BVN number</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="code-tabs">
+                        <button class="code-tab active" data-tab="bvn-request">Request</button>
+                        <button class="code-tab" data-tab="bvn-response">Response</button>
+                    </div>
+
+                    <div class="code-content active" id="bvn-request">
+                        <pre><code class="language-json hljs"><span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">"api_key"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"YOUR_API_KEY_HERE"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"bvn"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"12345678901"</span>
+<span class="hljs-punctuation">}</span></code></pre>
+                    </div>
+
+                    <div class="code-content" id="bvn-response">
+                        <pre><code class="language-json hljs"><span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">"status"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"success"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"response_code"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"00"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"user_data"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+        <span class="hljs-attr">"bvn"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"12345678901"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"first_name"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"JOHN"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"last_name"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"DOE"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"middle_name"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"MICHAEL"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"gender"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"MALE"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"date_of_birth"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"15-05-1985"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"phone_number"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"08012345678"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"address"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"123 Sample Street, Lagos"</span>
+    <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"message"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"BVN slip generated successfully"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"pdf_base64"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"base64_encoded_pdf_data_here..."</span>
+<span class="hljs-punctuation">}</span></code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- IPE Clearance -->
+        <section class="card">
+            <h3><i class="fas fa-user-shield"></i> IPE Clearance Services</h3>
+            <p>Submit IPE clearance requests and check status using tracking IDs.</p>
+
+            <div class="api-section">
+                <div class="api-header" onclick="toggleApiSection(&#39;ipe-clearance&#39;)">
+                    <h4><i class="fas fa-shield-alt"></i> IPE Clearance Submission &amp; Status Check</h4>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="api-content" id="ipe-clearance">
+                    <div class="endpoint-info">
+                        <span class="endpoint-method">POST</span>
+                        <span class="endpoint-url">https://gverifyer.com/developers/ipe/clearance.php</span>
+                    </div>
+
+                    <h5>Request Parameters</h5>
+                    <table class="param-table">
+                        <thead>
+                            <tr>
+                                <th>Parameter</th>
+                                <th>Type</th>
+                                <th>Required</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>api_key</td>
+                                <td>string</td>
+                                <td><span class="required">Yes</span></td>
+                                <td>Your API authentication key</td>
+                            </tr>
+                            <tr>
+                                <td>trackingID</td>
+                                <td>string</td>
+                                <td><span class="required">Yes</span></td>
+                                <td>Unique tracking ID for the submission</td>
+                            </tr>
+                            <tr>
+                                <td>nin</td>
+                                <td>string</td>
+                                <td><span class="required">Yes</span></td>
+                                <td>11-digit NIN number</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="code-tabs">
+                        <button class="code-tab active" data-tab="ipe-request">Request</button>
+                        <button class="code-tab" data-tab="ipe-response">Response</button>
+                    </div>
+
+                    <div class="code-content active" id="ipe-request">
+                        <pre><code class="language-json hljs"><span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">"api_key"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"YOUR_API_KEY_HERE"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"trackingID"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"IPE202400001"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"nin"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"12345678901"</span>
+<span class="hljs-punctuation">}</span></code></pre>
+                    </div>
+
+                    <div class="code-content" id="ipe-response">
+                        <pre><code class="language-json hljs"><span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">"status"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"success"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"response_code"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"00"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"user_data"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+        <span class="hljs-attr">"tracking_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"IPE202400001"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"new_tracking_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"NEW123456789"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"new_nin"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"98765432109"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"status"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"completed"</span>
+    <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"message"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"IPE clearance completed"</span>
+<span class="hljs-punctuation">}</span></code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Error Handling -->
+        <section class="card">
+            <h3><i class="fas fa-exclamation-triangle"></i> Error Handling</h3>
+            <p>All API responses follow a consistent format. Check the status field for success or error indications.</p>
+
+            <div class="response-codes">
+                <h5>HTTP Status Codes</h5>
+                <div class="response-code">
+                    <span class="code-badge code-success">200</span>
+                    <span>Success - PDF generated successfully</span>
+                </div>
+                <div class="response-code">
+                    <span class="code-badge code-error">400</span>
+                    <span>Bad Request - Invalid parameters, insufficient balance, or record not found</span>
+                </div>
+                <div class="response-code">
+                    <span class="code-badge code-error">429</span>
+                    <span>Too Many Requests - Rate limit exceeded</span>
+                </div>
+                <div class="response-code">
+                    <span class="code-badge code-error">403</span>
+                    <span>Forbidden - IP address blocked</span>
+                </div>
+            </div>
+
+            <div class="code-tabs">
+                <button class="code-tab active" data-tab="success-example">Success Example</button>
+                <button class="code-tab" data-tab="error-example">Error Example</button>
+                <button class="code-tab" data-tab="error-record">Record Not Found</button>
+            </div>
+
+            <div class="code-content active" id="success-example">
+                <pre><code class="language-json hljs"><span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">"status"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"success"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"response_code"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"00"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"user_data"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+        <span class="hljs-attr">"nin"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"12345678901"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"first_name"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"JOHN"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"last_name"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"DOE"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"middle_name"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"MICHAEL"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"gender"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"MALE"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"date_of_birth"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"15-05-1985"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"phone_number"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"08012345678"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"address"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"123 Sample Street, Lagos"</span>
+    <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"message"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"PDF generated successfully"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"pdf_base64"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"base64_encoded_data..."</span>
+<span class="hljs-punctuation">}</span></code></pre>
+                <p><strong>HTTP Status:</strong> 200 OK</p>
+            </div>
+
+            <div class="code-content" id="error-example">
+                <pre><code class="language-json hljs"><span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">"status"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"error"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"response_code"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"01"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"message"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"Invalid NIN number provided"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"error_code"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"INVALID_NIN"</span>
+<span class="hljs-punctuation">}</span></code></pre>
+                <p><strong>HTTP Status:</strong> 400 Bad Request</p>
+            </div>
+
+            <div class="code-content" id="error-record">
+                <pre><code class="language-json hljs"><span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">"status"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"error"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"response_code"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"02"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"message"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"API Response: Record not found. The ID data you entered does not exist or may be incorrect. Please ensure all details are correct and resubmit"</span>
+<span class="hljs-punctuation">}</span></code></pre>
+                <p><strong>HTTP Status:</strong> 400 Bad Request</p>
+            </div>
+        </section>
+
+      
+    </div>
+</main>
+
+<script>
+    // Initialize highlight.js
+    hljs.highlightAll();
+
+    // Sidebar toggle functionality
+    const toggleBtn = document.getElementById('toggle-sidebar');
+    const sidebar = document.getElementById('sidebar');
+    const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+    const overlay = document.getElementById('overlay');
+
+    toggleBtn.addEventListener('click', () => {
+        sidebar.classList.toggle('expanded');
+    });
+
+    mobileMenuBtn.addEventListener('click', () => {
+        sidebar.classList.toggle('expanded');
+        overlay.classList.toggle('active');
+    });
+
+    overlay.addEventListener('click', () => {
+        sidebar.classList.remove('expanded');
+        overlay.classList.remove('active');
+    });
+
+    // Dropdown functionality
+    const nimcServices = document.getElementById('nimc-services');
+    const nimcSubmenu = document.getElementById('nimc-submenu');
+    const bvnServices = document.getElementById('bvn-services');
+    const bvnSubmenu = document.getElementById('bvn-submenu');
+    const transactionsMenu = document.getElementById('transactions-menu');
+    const transactionsSubmenu = document.getElementById('transactions-submenu');
+
+    nimcServices.addEventListener('click', () => {
+        nimcServices.classList.toggle('open');
+        nimcSubmenu.classList.toggle('open');
+    });
+
+    bvnServices.addEventListener('click', () => {
+        bvnServices.classList.toggle('open');
+        bvnSubmenu.classList.toggle('open');
+    });
+
+    transactionsMenu.addEventListener('click', () => {
+        transactionsMenu.classList.toggle('open');
+        transactionsSubmenu.classList.toggle('open');
+    });
+
+    // API Section Toggle
+    function toggleApiSection(sectionId) {
+        const section = document.getElementById(sectionId);
+        const icon = section.previousElementSibling.querySelector('.fa-chevron-down');
+        
+        section.classList.toggle('open');
+        icon.classList.toggle('fa-chevron-down');
+        icon.classList.toggle('fa-chevron-up');
+    }
+
+    // Service Tier Switching
+    document.querySelectorAll('.service-tier').forEach(tier => {
+        tier.addEventListener('click', function() {
+            const container = this.closest('.service-tiers');
+            const category = this.getAttribute('data-tier');
+            
+            // Remove active class from all tiers in this container
+            container.querySelectorAll('.service-tier').forEach(t => {
+                t.classList.remove('active');
+            });
+            
+            // Add active class to clicked tier
+            this.classList.add('active');
+            
+            // Update endpoints based on tier selection
+            updateEndpoints(category);
+        });
+    });
+
+    // Update endpoints based on selected tier
+    function updateEndpoints(category) {
+        const endpoints = {
+            // NIN by NIN endpoints
+            'premium': 'https://gverifyer.com/api/verification/nin_by_nin.php',
+            'standard': 'https://gverifyer.com/api/verification/nin_standard.php',
+            'regular': 'https://gverifyer.com/api/verification/nin_regular.php',
+            
+            // NIN by Phone endpoints
+            'phone-premium': 'https://gverifyer.com/api/verification/nin_by_phone.php',
+            'phone-standard': 'https://gverifyer.com/api/verification/nin_standard_phone',
+            'phone-regular': 'https://gverifyer.com/api/verification/nin_regular_phone',
+            
+            // NIN by Demographic endpoints
+            'demo-premium': 'https://gverifyer.com/api/verification/nin_by_demo.php',
+            'demo-standard': 'https://gverifyer.com/api/verification/nin_standard_demo',
+            'demo-regular': 'https://gverifyer.com/api/verification/nin_regular_demo',
+            
+            // BVN endpoints
+            'bvn-premium': 'https://gverifyer.com/api/verification/bvn_by_bvn.php',
+            'bvn-standard': 'https://gverifyer.com/developers/bvn_slip/bvn_standard.php'
+        };
+
+        // Update all endpoint displays
+        Object.keys(endpoints).forEach(key => {
+            if (category === key) {
+                const endpointElement = document.getElementById(key.split('-')[0] + '-endpoint');
+                if (endpointElement) {
+                    endpointElement.textContent = endpoints[key];
+                }
+            }
+        });
+    }
+
+    // Code Tab Switching
+    document.querySelectorAll('.code-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const tabContainer = tab.closest('.code-tabs');
+            const contentId = tab.getAttribute('data-tab');
+            
+            // Remove active class from all tabs in this container
+            tabContainer.querySelectorAll('.code-tab').forEach(t => {
+                t.classList.remove('active');
+            });
+            
+            // Add active class to clicked tab
+            tab.classList.add('active');
+            
+            // Hide all content in this container
+            const contentContainer = tabContainer.nextElementSibling;
+            contentContainer.querySelectorAll('.code-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Show selected content
+            document.getElementById(contentId).classList.add('active');
+            
+            // Re-highlight code
+            hljs.highlightAll();
+        });
+    });
+
+    // Close sidebar when clicking on a link
+    document.querySelectorAll('.sidebar-nav a').forEach(link => {
+        link.addEventListener('click', (e) => {
+            if (window.innerWidth < 768 && !link.classList.contains('has-submenu')) {
+                sidebar.classList.remove('expanded');
+                overlay.classList.remove('active');
+            }
+        });
+    });
+
+    // Close sidebar when clicking outside on desktop
+    document.addEventListener('click', (e) => {
+        if (window.innerWidth >= 768 && 
+            !sidebar.contains(e.target) && 
+            !e.target.classList.contains('toggle-btn') && 
+            sidebar.classList.contains('expanded')) {
+            sidebar.classList.remove('expanded');
+        }
+    });
+
+    // Auto-expand first API section
+    document.addEventListener('DOMContentLoaded', () => {
+        const firstApiSection = document.querySelector('.api-section');
+        if (firstApiSection) {
+            const sectionId = firstApiSection.querySelector('.api-content').id;
+            toggleApiSection(sectionId);
+        }
+        
+        // Initialize with premium tier
+        updateEndpoints('premium');
+    });
+</script>
+
+</body></html>
