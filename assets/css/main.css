@@ -549,7 +549,7 @@ select.form-control option {
     }
 }
 
-/* Icon color animation - OPTIMIZED for performance */
+/* Icon styling - no animation, just static purple color */
 .zonatech-container i.fa,
 .zonatech-container i.fas,
 .zonatech-container i.far,
@@ -560,10 +560,6 @@ select.form-control option {
     font-size: 1.3em;
     color: var(--zona-purple);
     transition: transform 0.1s ease-out;
-    animation: icon-color-shift 1.5s ease-in-out infinite;
-    /* GPU acceleration */
-    will-change: transform;
-    transform: translateZ(0);
 }
 
 /* Larger icons in key areas */
@@ -579,18 +575,8 @@ select.form-control option {
 .zonatech-container a:hover i,
 .sidebar-nav-item:hover i,
 .quick-action-btn:hover i {
-    transform: scale(1.15);
-    filter: brightness(1.2) drop-shadow(0 0 8px rgba(139, 92, 246, 0.8));
-}
-
-/* Icon color shift animation - OPTIMIZED with simple filter */
-@keyframes icon-color-shift {
-    0%, 100% {
-        filter: drop-shadow(0 0 4px rgba(139, 92, 246, 0.5));
-    }
-    50% {
-        filter: drop-shadow(0 0 8px rgba(124, 58, 237, 0.8));
-    }
+    transform: scale(1.1);
+    filter: brightness(1.1);
 }
 
 .zonatech-nav {
