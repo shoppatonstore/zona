@@ -2368,12 +2368,15 @@ $current_user = wp_get_current_user();
                         <tbody>
                             <?php foreach ($nin_requests as $req): 
                                 $form_data = json_decode($req->form_data ?? '{}', true);
+                                $user_phone = $form_data['phone'] ?? $form_data['phone_nin'] ?? '';
                                 $service_names = array(
                                     'nin_slip_download' => 'Slip Download',
                                     'nin_modification' => 'Data Modification',
                                     'nin_dob_correction' => 'DOB Correction',
                                     'nin_slip' => 'Premium Slip',
-                                    'nin_standard_slip' => 'Standard Slip'
+                                    'nin_standard_slip' => 'Standard Slip',
+                                    'nin_verification' => 'NIN Verification',
+                                    'nin_validation' => 'NIN Validation'
                                 );
                                 $service_type = $req->service_type ?? 'nin_slip';
                                 $service_name = $service_names[$service_type] ?? $service_type;
@@ -2385,6 +2388,9 @@ $current_user = wp_get_current_user();
                                         <div class="user-details">
                                             <?php echo esc_html($req->display_name ?? 'Unknown'); ?>
                                             <small><?php echo esc_html($req->user_email ?? ''); ?></small>
+                                            <?php if ($user_phone): ?>
+                                                <small style="display: block; color: #22c55e;"><i class="fas fa-phone"></i> <?php echo esc_html($user_phone); ?></small>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
                                 </td>
@@ -2407,12 +2413,12 @@ $current_user = wp_get_current_user();
                                 <td><?php echo date('M j, Y', strtotime($req->created_at)); ?></td>
                                 <td>
                                     <?php if ($req->status === 'paid'): ?>
-                                        <button onclick="openFulfillModal(<?php echo $req->id; ?>, '<?php echo esc_js($req->display_name); ?>', '<?php echo esc_js($req->user_email); ?>', '<?php echo esc_js($req->nin_number); ?>', '<?php echo esc_js($service_name); ?>')" class="btn-admin btn-admin-primary" style="padding: 6px 12px; font-size: 12px;">
+                                        <button onclick="openFulfillModal(<?php echo $req->id; ?>, '<?php echo esc_js($req->display_name); ?>', '<?php echo esc_js($req->user_email); ?>', '<?php echo esc_js($req->nin_number); ?>', '<?php echo esc_js($service_name); ?>', '<?php echo esc_js($user_phone); ?>')" class="btn-admin btn-admin-primary" style="padding: 6px 12px; font-size: 12px;">
                                             <i class="fas fa-upload"></i> Fulfill
                                         </button>
                                     <?php else: ?>
-                                        <button class="btn-admin btn-admin-outline" style="padding: 6px 12px; font-size: 12px; opacity: 0.5;" disabled>
-                                            <i class="fas fa-check"></i> Done
+                                        <button onclick="openFulfillModal(<?php echo $req->id; ?>, '<?php echo esc_js($req->display_name); ?>', '<?php echo esc_js($req->user_email); ?>', '<?php echo esc_js($req->nin_number); ?>', '<?php echo esc_js($service_name); ?>', '<?php echo esc_js($user_phone); ?>')" class="btn-admin btn-admin-outline" style="padding: 6px 12px; font-size: 12px;">
+                                            <i class="fas fa-reply"></i> Reply
                                         </button>
                                     <?php endif; ?>
                                     <button onclick='viewRequestDetails(<?php echo wp_json_encode($form_data); ?>)' class="btn-admin btn-admin-outline" style="padding: 6px 12px; font-size: 12px;">
@@ -2473,14 +2479,21 @@ $current_user = wp_get_current_user();
                 </div>
                 
                 <div class="admin-form-group">
-                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                        <input type="checkbox" name="send_whatsapp" value="1" style="width: 18px; height: 18px; accent-color: #22c55e;">
-                        <span>Copy WhatsApp message (you'll send manually)</span>
-                    </label>
+                    <label><i class="fas fa-reply"></i> Custom Message to User (Optional)</label>
+                    <textarea name="custom_message" id="custom_message" rows="3" placeholder="Add a personalized message to include in the email..."></textarea>
                 </div>
                 
-                <button type="submit" class="admin-form-submit" style="background: linear-gradient(135deg, #22c55e, #16a34a);">
-                    <i class="fas fa-paper-plane"></i> Fulfill & Send to User
+                <div class="admin-form-group" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button type="button" onclick="openWhatsApp()" class="btn-admin" style="background: linear-gradient(135deg, #22c55e, #16a34a); padding: 12px 20px;">
+                        <i class="fab fa-whatsapp"></i> Reply via WhatsApp
+                    </button>
+                    <button type="button" onclick="copyWhatsAppMessage()" class="btn-admin btn-admin-outline" style="padding: 12px 20px;">
+                        <i class="fas fa-copy"></i> Copy WhatsApp Message
+                    </button>
+                </div>
+                
+                <button type="submit" class="admin-form-submit" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); margin-top: 10px;">
+                    <i class="fas fa-paper-plane"></i> Fulfill & Send Email to User
                 </button>
             </form>
         </div>
@@ -3049,13 +3062,73 @@ $current_user = wp_get_current_user();
         });
         
         // NIN Fulfillment Functions
-        function openFulfillModal(requestId, userName, userEmail, nin, service) {
+        var currentUserPhone = '';
+        var currentUserEmail = '';
+        var currentUserNin = '';
+        var currentServiceName = '';
+        var currentUserName = '';
+        
+        function openFulfillModal(requestId, userName, userEmail, nin, service, phone) {
             document.getElementById('fulfill-request-id').value = requestId;
             document.getElementById('fulfill-user-name').textContent = userName;
             document.getElementById('fulfill-user-email').textContent = userEmail;
             document.getElementById('fulfill-nin').textContent = nin;
             document.getElementById('fulfill-service').textContent = service;
+            
+            currentUserPhone = phone || '';
+            currentUserEmail = userEmail;
+            currentUserNin = nin;
+            currentServiceName = service;
+            currentUserName = userName;
+            
             openModal('fulfillNINModal');
+        }
+        
+        function openWhatsApp() {
+            var message = buildWhatsAppMessage();
+            var phone = currentUserPhone || prompt('Enter user phone number (e.g., 08012345678):');
+            if (!phone) return;
+            
+            // Format phone for WhatsApp (remove leading 0 and add 234)
+            phone = phone.replace(/\s/g, '');
+            if (phone.startsWith('0')) {
+                phone = '234' + phone.substring(1);
+            } else if (!phone.startsWith('234')) {
+                phone = '234' + phone;
+            }
+            
+            window.open('https://wa.me/' + phone + '?text=' + encodeURIComponent(message), '_blank');
+        }
+        
+        function buildWhatsAppMessage() {
+            var customMsg = document.getElementById('custom_message')?.value || '';
+            var message = '🎉 *ZonaTech NG - NIN Service Update*\n\n';
+            message += 'Hello ' + currentUserName + ',\n\n';
+            message += 'Your *' + currentServiceName + '* request has been processed successfully!\n\n';
+            message += '📝 *NIN:* ' + currentUserNin + '\n';
+            if (customMsg) {
+                message += '\n💬 *Message:* ' + customMsg + '\n';
+            }
+            message += '\n✅ Please check your email for the document.\n\n';
+            message += 'If you have any questions, feel free to reply to this message.\n\n';
+            message += 'Best regards,\n*ZonaTech NG Team*';
+            return message;
+        }
+        
+        function copyWhatsAppMessage() {
+            var message = buildWhatsAppMessage();
+            navigator.clipboard.writeText(message).then(function() {
+                alert('WhatsApp message copied to clipboard!');
+            }).catch(function() {
+                // Fallback for older browsers
+                var textArea = document.createElement('textarea');
+                textArea.value = message;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                alert('WhatsApp message copied to clipboard!');
+            });
         }
         
         function viewRequestDetails(formData) {

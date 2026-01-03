@@ -1,15 +1,17 @@
 <?php
 /**
- * NIN Service Template - Multiple Services
+ * NIN Service Template - NIN Verification & Validation
  */
 
 if (!defined('ABSPATH')) exit;
 $is_guest = !is_user_logged_in();
 
-// Get prices
-$slip_price = defined('ZONATECH_NIN_SLIP_DOWNLOAD_PRICE') ? ZONATECH_NIN_SLIP_DOWNLOAD_PRICE : 1300;
-$modification_price = defined('ZONATECH_NIN_MODIFICATION_PRICE') ? ZONATECH_NIN_MODIFICATION_PRICE : 3800;
-$dob_price = defined('ZONATECH_NIN_DOB_CORRECTION_PRICE') ? ZONATECH_NIN_DOB_CORRECTION_PRICE : 5300;
+// Prices
+$validation_price = 2300;
+$regular_slip_price = 280;
+$standard_slip_price = 280;
+$premium_slip_price = 300;
+$vnin_slip_price = 300;
 ?>
 
 <div class="zonatech-container">
@@ -24,7 +26,7 @@ $dob_price = defined('ZONATECH_NIN_DOB_CORRECTION_PRICE') ? ZONATECH_NIN_DOB_COR
                 <a href="<?php echo site_url(); ?>"><i class="fas fa-home"></i> Home</a>
                 <a href="<?php echo site_url('/zonatech-past-questions/'); ?>"><i class="fas fa-book-open"></i> Past Questions</a>
                 <a href="<?php echo site_url('/zonatech-scratch-cards/'); ?>"><i class="fas fa-credit-card"></i> Scratch Cards</a>
-                <a href="<?php echo site_url('/zonatech-nin-service/'); ?>" class="active"><i class="fas fa-id-card"></i> NIN Service</a>
+                <a href="<?php echo site_url('/zonatech-nin-service/'); ?>" class="active"><i class="fas fa-id-card"></i> NIN Services</a>
                 <?php if (is_user_logged_in()): ?>
                     <a href="<?php echo site_url('/zonatech-dashboard/'); ?>"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
                 <?php else: ?>
@@ -47,7 +49,7 @@ $dob_price = defined('ZONATECH_NIN_DOB_CORRECTION_PRICE') ? ZONATECH_NIN_DOB_COR
             <a href="<?php echo site_url(); ?>"><i class="fas fa-home"></i> Home</a>
             <a href="<?php echo site_url('/zonatech-past-questions/'); ?>"><i class="fas fa-book-open"></i> Past Questions</a>
             <a href="<?php echo site_url('/zonatech-scratch-cards/'); ?>"><i class="fas fa-credit-card"></i> Scratch Cards</a>
-            <a href="<?php echo site_url('/zonatech-nin-service/'); ?>" class="active"><i class="fas fa-id-card"></i> NIN Service</a>
+            <a href="<?php echo site_url('/zonatech-nin-service/'); ?>" class="active"><i class="fas fa-id-card"></i> NIN Services</a>
             <?php if (is_user_logged_in()): ?>
                 <a href="<?php echo site_url('/zonatech-dashboard/'); ?>"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
             <?php else: ?>
@@ -76,35 +78,27 @@ $dob_price = defined('ZONATECH_NIN_DOB_CORRECTION_PRICE') ? ZONATECH_NIN_DOB_COR
         </div>
         
         <!-- Service Cards -->
-        <div class="cards-grid" style="max-width: 1000px; margin: 0 auto 2rem; <?php echo $is_guest ? 'opacity: 0.6; pointer-events: none;' : ''; ?>">
+        <div class="cards-grid" style="max-width: 800px; margin: 0 auto 2rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; <?php echo $is_guest ? 'opacity: 0.6; pointer-events: none;' : ''; ?>">
             
-            <div class="service-card animate-card" onclick="showServiceForm('slip_download')" style="cursor: pointer;">
+            <!-- NIN Verification Card -->
+            <div class="service-card animate-card" onclick="showServiceForm('verification')" style="cursor: pointer;">
                 <div class="service-card-icon" style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(34, 197, 94, 0.1)); color: #22c55e;">
-                    <i class="fas fa-download"></i>
+                    <i class="fas fa-check-circle"></i>
                 </div>
-                <h3 class="service-card-title">NIN Slip Download</h3>
-                <p class="service-card-desc">Download your official NIN slip with photo and all details</p>
-                <p class="service-card-price" style="color: #22c55e;">₦<?php echo number_format($slip_price); ?></p>
+                <h3 class="service-card-title">NIN Verification</h3>
+                <p class="service-card-desc">Verify your NIN and download your NIN slip with multiple verification methods</p>
+                <p class="service-card-price" style="color: #22c55e;">From ₦<?php echo number_format($regular_slip_price); ?></p>
                 <button class="btn btn-primary btn-sm" style="margin-top: 1rem;"><i class="fas fa-arrow-right"></i> Get Started</button>
             </div>
             
-            <div class="service-card animate-card" onclick="showServiceForm('modification')" style="cursor: pointer;">
+            <!-- NIN Validation Card -->
+            <div class="service-card animate-card" onclick="showServiceForm('validation')" style="cursor: pointer;">
                 <div class="service-card-icon" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.1)); color: #3b82f6;">
-                    <i class="fas fa-edit"></i>
+                    <i class="fas fa-shield-alt"></i>
                 </div>
-                <h3 class="service-card-title">NIN Data Modification</h3>
-                <p class="service-card-desc">Correct your name, gender, or other details on your NIN</p>
-                <p class="service-card-price" style="color: #3b82f6;">₦<?php echo number_format($modification_price); ?></p>
-                <button class="btn btn-primary btn-sm" style="margin-top: 1rem;"><i class="fas fa-arrow-right"></i> Get Started</button>
-            </div>
-            
-            <div class="service-card animate-card" onclick="showServiceForm('dob_correction')" style="cursor: pointer;">
-                <div class="service-card-icon" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(245, 158, 11, 0.1)); color: #f59e0b;">
-                    <i class="fas fa-calendar-alt"></i>
-                </div>
-                <h3 class="service-card-title">Date of Birth Correction</h3>
-                <p class="service-card-desc">Update your date of birth on your NIN record</p>
-                <p class="service-card-price" style="color: #f59e0b;">₦<?php echo number_format($dob_price); ?></p>
+                <h3 class="service-card-title">NIN Validation</h3>
+                <p class="service-card-desc">Validate your NIN for SIM registration, banking, and other official purposes</p>
+                <p class="service-card-price" style="color: #3b82f6;">₦<?php echo number_format($validation_price); ?></p>
                 <button class="btn btn-primary btn-sm" style="margin-top: 1rem;"><i class="fas fa-arrow-right"></i> Get Started</button>
             </div>
         </div>
@@ -112,136 +106,197 @@ $dob_price = defined('ZONATECH_NIN_DOB_CORRECTION_PRICE') ? ZONATECH_NIN_DOB_COR
         <!-- Service Forms Container -->
         <div id="service-forms-container" style="display: none; max-width: 700px; margin: 0 auto;">
             
-            <!-- Form 1: NIN Slip Download -->
-            <div id="form-slip_download" class="glass-card service-form" style="display: none;">
+            <!-- NIN Verification Form -->
+            <div id="form-verification" class="glass-card service-form" style="display: none;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                    <h3 class="text-white" style="margin: 0;"><i class="fas fa-download" style="color: #22c55e;"></i> NIN Slip Download</h3>
+                    <h3 class="text-white" style="margin: 0;"><i class="fas fa-check-circle" style="color: #22c55e;"></i> NIN Verification</h3>
                     <button onclick="hideServiceForm()" class="btn btn-sm" style="background: rgba(239, 68, 68, 0.2); color: #ef4444;"><i class="fas fa-times"></i> Close</button>
                 </div>
-                <form id="slip-download-form" onsubmit="submitNINService(event, 'nin_slip_download', <?php echo $slip_price; ?>)">
+                
+                <form id="verification-form" onsubmit="submitNINVerification(event)">
+                    <!-- Verification Method -->
                     <div class="form-group">
-                        <label class="text-white"><i class="fas fa-id-badge"></i> NIN Number *</label>
-                        <input type="text" name="nin" class="form-control" placeholder="Enter your 11-digit NIN" maxlength="11" pattern="\d{11}" required>
-                    </div>
-                    <div class="row" style="display: flex; gap: 1rem;">
-                        <div class="form-group" style="flex: 1;">
-                            <label class="text-white"><i class="fas fa-user"></i> Full Name *</label>
-                            <input type="text" name="full_name" class="form-control" placeholder="As it appears on NIN" required>
+                        <label class="text-white"><i class="fas fa-search"></i> Preferred Verification Method *</label>
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; margin-top: 0.5rem;">
+                            <label class="radio-card" style="display: flex; align-items: center; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer;">
+                                <input type="radio" name="verification_method" value="nin_number" checked style="margin-right: 10px;" onchange="updateVerificationFields()">
+                                <span class="text-white" style="font-size: 0.9rem;"><i class="fas fa-id-badge"></i> NIN Number</span>
+                            </label>
+                            <label class="radio-card" style="display: flex; align-items: center; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer;">
+                                <input type="radio" name="verification_method" value="phone_number" style="margin-right: 10px;" onchange="updateVerificationFields()">
+                                <span class="text-white" style="font-size: 0.9rem;"><i class="fas fa-phone"></i> Phone Number</span>
+                            </label>
+                            <label class="radio-card" style="display: flex; align-items: center; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer;">
+                                <input type="radio" name="verification_method" value="tracking_id" style="margin-right: 10px;" onchange="updateVerificationFields()">
+                                <span class="text-white" style="font-size: 0.9rem;"><i class="fas fa-hashtag"></i> Tracking ID</span>
+                            </label>
+                            <label class="radio-card" style="display: flex; align-items: center; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer;">
+                                <input type="radio" name="verification_method" value="demographic" style="margin-right: 10px;" onchange="updateVerificationFields()">
+                                <span class="text-white" style="font-size: 0.9rem;"><i class="fas fa-user"></i> Demographic Info</span>
+                            </label>
                         </div>
-                        <div class="form-group" style="flex: 1;">
-                            <label class="text-white"><i class="fas fa-phone"></i> Phone *</label>
-                            <input type="tel" name="phone" class="form-control" placeholder="Your phone number" required>
+                    </div>
+                    
+                    <!-- Slip Type -->
+                    <div class="form-group">
+                        <label class="text-white"><i class="fas fa-file-alt"></i> Select Slip Type *</label>
+                        <select name="slip_type" id="slip_type" class="form-control" onchange="updateVerificationPrice()" required>
+                            <option value="regular" data-price="<?php echo $regular_slip_price; ?>">Regular Slip - ₦<?php echo number_format($regular_slip_price); ?></option>
+                            <option value="standard" data-price="<?php echo $standard_slip_price; ?>">Standard Slip - ₦<?php echo number_format($standard_slip_price); ?></option>
+                            <option value="premium" data-price="<?php echo $premium_slip_price; ?>">Premium Slip - ₦<?php echo number_format($premium_slip_price); ?></option>
+                            <option value="vnin" data-price="<?php echo $vnin_slip_price; ?>">VNIN Slip - ₦<?php echo number_format($vnin_slip_price); ?></option>
+                        </select>
+                    </div>
+                    
+                    <!-- NIN Number Fields (default) -->
+                    <div id="nin-number-fields">
+                        <div class="form-group">
+                            <label class="text-white"><i class="fas fa-id-badge"></i> 11-Digit NIN Number *</label>
+                            <input type="text" name="nin" class="form-control" placeholder="Enter your 11-digit NIN" maxlength="11" pattern="\d{11}">
                         </div>
                     </div>
+                    
+                    <!-- Phone Number Fields (hidden) -->
+                    <div id="phone-number-fields" style="display: none;">
+                        <div class="form-group">
+                            <label class="text-white"><i class="fas fa-phone"></i> Phone Number (Nigerian Format) *</label>
+                            <input type="tel" name="phone_nin" class="form-control" placeholder="e.g., 08012345678" maxlength="11" pattern="0[7-9][0-1]\d{8}">
+                        </div>
+                    </div>
+                    
+                    <!-- Tracking ID Fields (hidden) -->
+                    <div id="tracking-id-fields" style="display: none;">
+                        <div class="form-group">
+                            <label class="text-white"><i class="fas fa-hashtag"></i> Tracking ID Number *</label>
+                            <input type="text" name="tracking_id" class="form-control" placeholder="Enter your tracking ID">
+                        </div>
+                    </div>
+                    
+                    <!-- Demographic Fields (hidden) -->
+                    <div id="demographic-fields" style="display: none;">
+                        <div class="row" style="display: flex; gap: 1rem;">
+                            <div class="form-group" style="flex: 1;">
+                                <label class="text-white"><i class="fas fa-user"></i> First Name *</label>
+                                <input type="text" name="first_name" class="form-control" placeholder="First name">
+                            </div>
+                            <div class="form-group" style="flex: 1;">
+                                <label class="text-white"><i class="fas fa-user"></i> Last Name *</label>
+                                <input type="text" name="last_name" class="form-control" placeholder="Last name">
+                            </div>
+                        </div>
+                        <div class="row" style="display: flex; gap: 1rem;">
+                            <div class="form-group" style="flex: 1;">
+                                <label class="text-white"><i class="fas fa-calendar"></i> Date of Birth *</label>
+                                <input type="date" name="date_of_birth" class="form-control">
+                            </div>
+                            <div class="form-group" style="flex: 1;">
+                                <label class="text-white"><i class="fas fa-venus-mars"></i> Gender *</label>
+                                <select name="gender" class="form-control">
+                                    <option value="">Select Gender</option>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Transaction PIN -->
+                    <div class="form-group">
+                        <label class="text-white"><i class="fas fa-key"></i> 4-Digit Transaction PIN *</label>
+                        <input type="password" name="transaction_pin" class="form-control" placeholder="Enter 4-digit PIN" maxlength="4" pattern="\d{4}" required>
+                    </div>
+                    
+                    <!-- Contact Info -->
                     <div class="form-group">
                         <label class="text-white"><i class="fas fa-envelope"></i> Email *</label>
                         <input type="email" name="email" class="form-control" value="<?php echo is_user_logged_in() ? esc_attr(wp_get_current_user()->user_email) : ''; ?>" required>
                     </div>
-                    <div style="background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 10px; padding: 1rem; margin: 1.5rem 0;">
+                    
+                    <!-- Price Display -->
+                    <div id="verification-price-display" style="background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 10px; padding: 1rem; margin: 1.5rem 0;">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <span class="text-white"><strong>Service Fee:</strong></span>
-                            <span style="color: #22c55e; font-size: 1.5rem; font-weight: 700;">₦<?php echo number_format($slip_price); ?></span>
+                            <span id="verification-price" style="color: #22c55e; font-size: 1.5rem; font-weight: 700;">₦<?php echo number_format($regular_slip_price); ?></span>
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-primary" style="width: 100%; padding: 15px;"><i class="fas fa-credit-card"></i> Pay & Submit Request</button>
+                    
+                    <button type="submit" class="btn btn-primary" style="width: 100%; padding: 15px;"><i class="fas fa-check-circle"></i> Verify NIN</button>
                 </form>
             </div>
             
-            <!-- Form 2: NIN Modification -->
-            <div id="form-modification" class="glass-card service-form" style="display: none;">
+            <!-- NIN Validation Form -->
+            <div id="form-validation" class="glass-card service-form" style="display: none;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                    <h3 class="text-white" style="margin: 0;"><i class="fas fa-edit" style="color: #3b82f6;"></i> NIN Data Modification</h3>
+                    <h3 class="text-white" style="margin: 0;"><i class="fas fa-shield-alt" style="color: #3b82f6;"></i> NIN Validation</h3>
                     <button onclick="hideServiceForm()" class="btn btn-sm" style="background: rgba(239, 68, 68, 0.2); color: #ef4444;"><i class="fas fa-times"></i> Close</button>
                 </div>
-                <form id="modification-form" onsubmit="submitNINService(event, 'nin_modification', <?php echo $modification_price; ?>)">
+                
+                <form id="validation-form" onsubmit="submitNINValidation(event)">
+                    <!-- Validation Type -->
                     <div class="form-group">
-                        <label class="text-white"><i class="fas fa-id-badge"></i> NIN Number *</label>
+                        <label class="text-white"><i class="fas fa-list"></i> Select Validation Type *</label>
+                        <div style="display: grid; gap: 0.5rem; margin-top: 0.5rem;">
+                            <label class="radio-card" style="display: flex; align-items: center; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer;">
+                                <input type="radio" name="validation_type" value="sim_validation" checked style="margin-right: 10px;">
+                                <span class="text-white" style="font-size: 0.9rem;"><i class="fas fa-sim-card"></i> SIM Validation</span>
+                            </label>
+                            <label class="radio-card" style="display: flex; align-items: center; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer;">
+                                <input type="radio" name="validation_type" value="vnin_validation" style="margin-right: 10px;">
+                                <span class="text-white" style="font-size: 0.9rem;"><i class="fas fa-mobile-alt"></i> V.NIN Validation</span>
+                            </label>
+                            <label class="radio-card" style="display: flex; align-items: center; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer;">
+                                <input type="radio" name="validation_type" value="update_records" style="margin-right: 10px;">
+                                <span class="text-white" style="font-size: 0.9rem;"><i class="fas fa-sync-alt"></i> Update Records Validation</span>
+                            </label>
+                            <label class="radio-card" style="display: flex; align-items: center; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer;">
+                                <input type="radio" name="validation_type" value="bank_validation" style="margin-right: 10px;">
+                                <span class="text-white" style="font-size: 0.9rem;"><i class="fas fa-university"></i> Bank Validation</span>
+                            </label>
+                            <label class="radio-card" style="display: flex; align-items: center; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer;">
+                                <input type="radio" name="validation_type" value="modification_validation" style="margin-right: 10px;">
+                                <span class="text-white" style="font-size: 0.9rem;"><i class="fas fa-edit"></i> Modification Validation</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- NIN Number -->
+                    <div class="form-group">
+                        <label class="text-white"><i class="fas fa-id-badge"></i> 11-Digit NIN Number *</label>
                         <input type="text" name="nin" class="form-control" placeholder="Enter your 11-digit NIN" maxlength="11" pattern="\d{11}" required>
                     </div>
-                    <div class="row" style="display: flex; gap: 1rem;">
-                        <div class="form-group" style="flex: 1;">
-                            <label class="text-white"><i class="fas fa-user"></i> Current Name *</label>
-                            <input type="text" name="current_name" class="form-control" placeholder="Current name on NIN" required>
-                        </div>
-                        <div class="form-group" style="flex: 1;">
-                            <label class="text-white"><i class="fas fa-user-edit"></i> New Name *</label>
-                            <input type="text" name="new_name" class="form-control" placeholder="Corrected name" required>
-                        </div>
-                    </div>
+                    
+                    <!-- Transaction PIN -->
                     <div class="form-group">
-                        <label class="text-white"><i class="fas fa-venus-mars"></i> Gender Correction</label>
-                        <select name="gender" class="form-control">
-                            <option value="">No change needed</option>
-                            <option value="male">Male</option>
-                            <option value="female">Female</option>
-                        </select>
+                        <label class="text-white"><i class="fas fa-key"></i> 4-Digit Transaction PIN *</label>
+                        <input type="password" name="transaction_pin" class="form-control" placeholder="Enter 4-digit PIN" maxlength="4" pattern="\d{4}" required>
                     </div>
+                    
+                    <!-- Contact Info -->
                     <div class="form-group">
-                        <label class="text-white"><i class="fas fa-sticky-note"></i> Other Details</label>
-                        <textarea name="other_details" class="form-control" rows="2" placeholder="Describe any other changes needed"></textarea>
+                        <label class="text-white"><i class="fas fa-envelope"></i> Email *</label>
+                        <input type="email" name="email" class="form-control" value="<?php echo is_user_logged_in() ? esc_attr(wp_get_current_user()->user_email) : ''; ?>" required>
                     </div>
-                    <div class="row" style="display: flex; gap: 1rem;">
-                        <div class="form-group" style="flex: 1;">
-                            <label class="text-white"><i class="fas fa-phone"></i> Phone *</label>
-                            <input type="tel" name="phone" class="form-control" placeholder="Your phone" required>
-                        </div>
-                        <div class="form-group" style="flex: 1;">
-                            <label class="text-white"><i class="fas fa-envelope"></i> Email *</label>
-                            <input type="email" name="email" class="form-control" value="<?php echo is_user_logged_in() ? esc_attr(wp_get_current_user()->user_email) : ''; ?>" required>
-                        </div>
+                    
+                    <!-- Disclaimer -->
+                    <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 10px; padding: 1rem; margin: 1.5rem 0;">
+                        <h4 style="color: #f59e0b; margin: 0 0 0.5rem 0; font-size: 0.95rem;"><i class="fas fa-exclamation-triangle"></i> Important Notice</h4>
+                        <ul style="color: rgba(255,255,255,0.7); font-size: 0.85rem; margin: 0; padding-left: 1.2rem; line-height: 1.6;">
+                            <li>This validation is valid for a <strong style="color: #f59e0b;">minimum of 1 hour</strong> and <strong style="color: #f59e0b;">not more than 48 hours</strong> from the time of issuance.</li>
+                            <li><strong style="color: #ef4444;">No refunds</strong> will be processed for incorrect NIN entries. Please verify your NIN before submission.</li>
+                            <li>The validation result is intended for official use and should be presented within the validity period.</li>
+                            <li>For any issues, contact our support team immediately after receiving your validation.</li>
+                        </ul>
                     </div>
+                    
+                    <!-- Price Display -->
                     <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 10px; padding: 1rem; margin: 1.5rem 0;">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <span class="text-white"><strong>Service Fee:</strong></span>
-                            <span style="color: #3b82f6; font-size: 1.5rem; font-weight: 700;">₦<?php echo number_format($modification_price); ?></span>
+                            <span style="color: #3b82f6; font-size: 1.5rem; font-weight: 700;">₦<?php echo number_format($validation_price); ?></span>
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-primary" style="width: 100%; padding: 15px;"><i class="fas fa-credit-card"></i> Pay & Submit Request</button>
-                </form>
-            </div>
-            
-            <!-- Form 3: DOB Correction -->
-            <div id="form-dob_correction" class="glass-card service-form" style="display: none;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                    <h3 class="text-white" style="margin: 0;"><i class="fas fa-calendar-alt" style="color: #f59e0b;"></i> Date of Birth Correction</h3>
-                    <button onclick="hideServiceForm()" class="btn btn-sm" style="background: rgba(239, 68, 68, 0.2); color: #ef4444;"><i class="fas fa-times"></i> Close</button>
-                </div>
-                <form id="dob-form" onsubmit="submitNINService(event, 'nin_dob_correction', <?php echo $dob_price; ?>)">
-                    <div class="form-group">
-                        <label class="text-white"><i class="fas fa-id-badge"></i> NIN Number *</label>
-                        <input type="text" name="nin" class="form-control" placeholder="Enter your 11-digit NIN" maxlength="11" pattern="\d{11}" required>
-                    </div>
-                    <div class="form-group">
-                        <label class="text-white"><i class="fas fa-user"></i> Full Name *</label>
-                        <input type="text" name="full_name" class="form-control" placeholder="As it appears on NIN" required>
-                    </div>
-                    <div class="row" style="display: flex; gap: 1rem;">
-                        <div class="form-group" style="flex: 1;">
-                            <label class="text-white"><i class="fas fa-calendar-times"></i> Current DOB (Wrong) *</label>
-                            <input type="date" name="current_dob" class="form-control" required>
-                        </div>
-                        <div class="form-group" style="flex: 1;">
-                            <label class="text-white"><i class="fas fa-calendar-check"></i> Correct DOB *</label>
-                            <input type="date" name="new_dob" class="form-control" required>
-                        </div>
-                    </div>
-                    <div class="row" style="display: flex; gap: 1rem;">
-                        <div class="form-group" style="flex: 1;">
-                            <label class="text-white"><i class="fas fa-phone"></i> Phone *</label>
-                            <input type="tel" name="phone" class="form-control" placeholder="Your phone" required>
-                        </div>
-                        <div class="form-group" style="flex: 1;">
-                            <label class="text-white"><i class="fas fa-envelope"></i> Email *</label>
-                            <input type="email" name="email" class="form-control" value="<?php echo is_user_logged_in() ? esc_attr(wp_get_current_user()->user_email) : ''; ?>" required>
-                        </div>
-                    </div>
-                    <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 10px; padding: 1rem; margin: 1.5rem 0;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span class="text-white"><strong>Service Fee:</strong></span>
-                            <span style="color: #f59e0b; font-size: 1.5rem; font-weight: 700;">₦<?php echo number_format($dob_price); ?></span>
-                        </div>
-                    </div>
-                    <button type="submit" class="btn btn-primary" style="width: 100%; padding: 15px;"><i class="fas fa-credit-card"></i> Pay & Submit Request</button>
+                    
+                    <button type="submit" class="btn btn-primary" style="width: 100%; padding: 15px;"><i class="fas fa-credit-card"></i> Pay & Validate NIN</button>
                 </form>
             </div>
         </div>
@@ -281,8 +336,8 @@ $dob_price = defined('ZONATECH_NIN_DOB_CORRECTION_PRICE') ? ZONATECH_NIN_DOB_COR
             <div class="footer-content">
                 <div class="footer-logo"><img src="<?php echo ZONATECH_PLUGIN_URL; ?>assets/images/logo.png" alt="ZonaTech NG" class="footer-logo-img"><span>ZonaTech NG</span></div>
                 <div class="footer-social">
-                    <a href="https://wa.me/234<?php echo substr(ZONATECH_WHATSAPP_NUMBER, 1); ?>" target="_blank"><i class="fab fa-whatsapp"></i></a>
-                    <a href="mailto:<?php echo ZONATECH_SUPPORT_EMAIL; ?>"><i class="fas fa-envelope"></i></a>
+                    <a href="https://wa.me/234<?php echo substr(defined('ZONATECH_WHATSAPP_NUMBER') ? ZONATECH_WHATSAPP_NUMBER : '08012345678', 1); ?>" target="_blank"><i class="fab fa-whatsapp"></i></a>
+                    <a href="mailto:<?php echo defined('ZONATECH_SUPPORT_EMAIL') ? ZONATECH_SUPPORT_EMAIL : 'support@zonatech.ng'; ?>"><i class="fas fa-envelope"></i></a>
                 </div>
                 <p class="footer-copyright">© <?php echo date('Y'); ?> ZonaTech NG. All rights reserved.</p>
             </div>
@@ -339,13 +394,72 @@ function hideServiceForm() {
     document.getElementById('service-forms-container').style.display = 'none';
 }
 
-function submitNINService(event, serviceType, amount) {
+function updateVerificationFields() {
+    var method = document.querySelector('input[name="verification_method"]:checked').value;
+    
+    // Hide all field sections
+    document.getElementById('nin-number-fields').style.display = 'none';
+    document.getElementById('phone-number-fields').style.display = 'none';
+    document.getElementById('tracking-id-fields').style.display = 'none';
+    document.getElementById('demographic-fields').style.display = 'none';
+    
+    // Remove required from all optional inputs
+    document.querySelectorAll('#nin-number-fields input, #phone-number-fields input, #tracking-id-fields input, #demographic-fields input, #demographic-fields select').forEach(function(input) {
+        input.removeAttribute('required');
+    });
+    
+    // Show and require appropriate fields
+    if (method === 'nin_number') {
+        document.getElementById('nin-number-fields').style.display = 'block';
+        document.querySelector('#nin-number-fields input[name="nin"]').setAttribute('required', 'required');
+    } else if (method === 'phone_number') {
+        document.getElementById('phone-number-fields').style.display = 'block';
+        document.querySelector('#phone-number-fields input[name="phone_nin"]').setAttribute('required', 'required');
+    } else if (method === 'tracking_id') {
+        document.getElementById('tracking-id-fields').style.display = 'block';
+        document.querySelector('#tracking-id-fields input[name="tracking_id"]').setAttribute('required', 'required');
+    } else if (method === 'demographic') {
+        document.getElementById('demographic-fields').style.display = 'block';
+        document.querySelectorAll('#demographic-fields input[name="first_name"], #demographic-fields input[name="last_name"], #demographic-fields input[name="date_of_birth"], #demographic-fields select[name="gender"]').forEach(function(input) {
+            input.setAttribute('required', 'required');
+        });
+    }
+}
+
+function updateVerificationPrice() {
+    var select = document.getElementById('slip_type');
+    var selectedOption = select.options[select.selectedIndex];
+    var price = parseInt(selectedOption.getAttribute('data-price'));
+    document.getElementById('verification-price').textContent = '₦' + price.toLocaleString();
+}
+
+function submitNINVerification(event) {
     event.preventDefault();
     var form = event.target;
     var formData = new FormData(form);
     var metaData = {};
     formData.forEach(function(value, key) { metaData[key] = value; });
     
+    var select = document.getElementById('slip_type');
+    var selectedOption = select.options[select.selectedIndex];
+    var amount = parseInt(selectedOption.getAttribute('data-price'));
+    
+    initiateNINPayment('nin_verification', amount, metaData);
+}
+
+function submitNINValidation(event) {
+    event.preventDefault();
+    var form = event.target;
+    var formData = new FormData(form);
+    var metaData = {};
+    formData.forEach(function(value, key) { metaData[key] = value; });
+    
+    var amount = <?php echo $validation_price; ?>;
+    
+    initiateNINPayment('nin_validation', amount, metaData);
+}
+
+function initiateNINPayment(serviceType, amount, metaData) {
     if (typeof ZonaTechPayment !== 'undefined' && typeof ZonaTechPayment.initiatePayment === 'function') {
         ZonaTechPayment.initiatePayment(serviceType, amount, metaData);
     } else {
@@ -393,4 +507,9 @@ function verifyNINPayment(reference) {
 
 function showSuccessModal() { document.getElementById('nin-success-modal').style.display = 'flex'; }
 function closeSuccessModal() { document.getElementById('nin-success-modal').style.display = 'none'; }
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateVerificationFields();
+});
 </script>
