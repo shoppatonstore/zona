@@ -336,8 +336,8 @@ $vnin_slip_price = 300;
             <div class="footer-content">
                 <div class="footer-logo"><img src="<?php echo ZONATECH_PLUGIN_URL; ?>assets/images/logo.png" alt="ZonaTech NG" class="footer-logo-img"><span>ZonaTech NG</span></div>
                 <div class="footer-social">
-                    <a href="https://wa.me/234<?php echo substr(defined('ZONATECH_WHATSAPP_NUMBER') ? ZONATECH_WHATSAPP_NUMBER : '08012345678', 1); ?>" target="_blank"><i class="fab fa-whatsapp"></i></a>
-                    <a href="mailto:<?php echo defined('ZONATECH_SUPPORT_EMAIL') ? ZONATECH_SUPPORT_EMAIL : 'support@zonatech.ng'; ?>"><i class="fas fa-envelope"></i></a>
+                    <a href="https://wa.me/234<?php echo substr(ZONATECH_WHATSAPP_NUMBER, 1); ?>" target="_blank"><i class="fab fa-whatsapp"></i></a>
+                    <a href="mailto:<?php echo ZONATECH_SUPPORT_EMAIL; ?>"><i class="fas fa-envelope"></i></a>
                 </div>
                 <p class="footer-copyright">© <?php echo date('Y'); ?> ZonaTech NG. All rights reserved.</p>
             </div>
