@@ -318,13 +318,13 @@ $stats = $user_data['stats'];
 
 <script>
 jQuery(document).ready(function($) {
-    // Hide loading screen
-    setTimeout(function() {
+    // Hide loading screen - FAST!
+    requestAnimationFrame(function() {
         $('#zonatech-loading-screen').addClass('fade-out');
         setTimeout(function() {
             $('#zonatech-loading-screen').hide();
-        }, 300);
-    }, 500);
+        }, 100);
+    });
     
     // Section navigation
     $('[data-section]').on('click', function(e) {

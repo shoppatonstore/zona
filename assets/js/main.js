@@ -1,56 +1,86 @@
 /**
  * ZonaTech NG - Main JavaScript
+ * OPTIMIZED for blazing fast performance
  */
 
 (function($) {
     'use strict';
     
-    // Initialize when document is ready
-    $(document).ready(function() {
+    // Initialize immediately when DOM is interactive (faster than ready)
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            ZonaTech.init();
+        });
+    } else {
         ZonaTech.init();
-    });
+    }
     
     const ZonaTech = {
         init: function() {
-            this.initScrollProgress();
-            this.initAnimations();
+            // Use requestIdleCallback for non-critical tasks
+            if ('requestIdleCallback' in window) {
+                requestIdleCallback(() => {
+                    this.initScrollProgress();
+                    this.initAnimations();
+                });
+            } else {
+                setTimeout(() => {
+                    this.initScrollProgress();
+                    this.initAnimations();
+                }, 1);
+            }
+            
+            // Critical tasks immediately
             this.initDigitalClock();
             this.initTabs();
             this.initMobileMenu();
             this.initNotifications();
         },
         
-        // Scroll Progress Bar
+        // Scroll Progress Bar - OPTIMIZED with throttle
         initScrollProgress: function() {
-            const progressBar = $('<div class="scroll-progress"></div>');
-            $('body').prepend(progressBar);
+            const progressBar = document.createElement('div');
+            progressBar.className = 'scroll-progress';
+            document.body.prepend(progressBar);
             
-            $(window).on('scroll', function() {
-                const scrollTop = $(window).scrollTop();
-                const docHeight = $(document).height() - $(window).height();
+            let ticking = false;
+            const updateProgress = () => {
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                const docHeight = document.documentElement.scrollHeight - window.innerHeight;
                 const scrollPercent = (scrollTop / docHeight) * 100;
-                progressBar.css('width', scrollPercent + '%');
-            });
+                progressBar.style.width = scrollPercent + '%';
+                ticking = false;
+            };
+            
+            window.addEventListener('scroll', function() {
+                if (!ticking) {
+                    requestAnimationFrame(updateProgress);
+                    ticking = true;
+                }
+            }, { passive: true });
         },
         
-        // Scroll Animations
+        // Scroll Animations - OPTIMIZED with IntersectionObserver
         initAnimations: function() {
-            const animatedElements = $('.animate-on-scroll');
+            const animatedElements = document.querySelectorAll('.animate-on-scroll');
+            
+            if (animatedElements.length === 0) return;
             
             const observer = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {
                     if (entry.isIntersecting) {
-                        $(entry.target).addClass('animated');
+                        entry.target.classList.add('animated');
+                        observer.unobserve(entry.target); // Stop observing once animated
                     }
                 });
-            }, { threshold: 0.1 });
+            }, { threshold: 0.1, rootMargin: '50px' });
             
-            animatedElements.each(function() {
-                observer.observe(this);
+            animatedElements.forEach(el => observer.observe(el));
+            
+            // Add button animations with native JS
+            document.querySelectorAll('.btn').forEach(btn => {
+                btn.classList.add('btn-animated', 'btn-ripple');
             });
-            
-            // Add button animations
-            $('.btn').addClass('btn-animated btn-ripple');
         },
         
         // Digital Clock

@@ -1,6 +1,25 @@
 /**
  * ZonaTech NG - Animations
+ * OPTIMIZED for blazing fast performance
  */
+
+/* GPU acceleration for all animations */
+.animate-on-scroll,
+.animate-card,
+.fade-in,
+.fade-in-up,
+.fade-in-down,
+.fade-in-left,
+.fade-in-right,
+.float,
+.pulse,
+.glow,
+.shimmer,
+.hover-lift {
+    will-change: transform, opacity;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+}
 
 /* Scroll Progress Bar */
 .scroll-progress {
@@ -11,22 +30,24 @@
     height: 3px;
     background: var(--zona-gradient-purple);
     z-index: 9999;
-    transition: width 0.1s ease;
+    transition: width 0.05s linear;
+    will-change: width;
 }
 
-/* Button Animations */
+/* Button Animations - OPTIMIZED */
 .btn-animated {
     position: relative;
     overflow: hidden;
+    transform: translateZ(0);
 }
 
 .btn-animated span {
     display: inline-block;
-    transition: transform var(--transition-normal);
+    transition: transform 0.15s ease-out;
 }
 
 .btn-animated:hover span {
-    animation: buttonTextSlide 0.4s ease;
+    animation: buttonTextSlide 0.2s ease;
 }
 
 @keyframes buttonTextSlide {
@@ -36,11 +57,12 @@
     100% { transform: translateY(0); opacity: 1; }
 }
 
-/* Swift Color Button Animation */
+/* Swift Color Button Animation - OPTIMIZED */
 .btn-swift {
     position: relative;
     overflow: hidden;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
+    transform: translateZ(0);
 }
 
 .btn-swift::before {
@@ -56,7 +78,7 @@
         rgba(255, 255, 255, 0.3),
         transparent
     );
-    transition: left 0.5s ease;
+    transition: left 0.25s ease-out;
 }
 
 .btn-swift:hover::before {
@@ -64,18 +86,19 @@
 }
 
 .btn-swift:hover {
-    transform: translateY(-3px) scale(1.02);
-    box-shadow: 0 10px 30px rgba(139, 92, 246, 0.4);
+    transform: translateY(-2px) scale(1.01) translateZ(0);
+    box-shadow: 0 8px 20px rgba(139, 92, 246, 0.3);
 }
 
-/* Color Shift Button */
+/* Color Shift Button - OPTIMIZED */
 .btn-color-shift {
     background: linear-gradient(135deg, #8b5cf6, #7c3aed, #6d28d9, #7c3aed, #8b5cf6);
-    background-size: 300% 300%;
-    animation: colorShift 3s ease infinite;
+    background-size: 200% 200%;
+    animation: colorShift 1.5s ease infinite;
     color: #ffffff !important;
     font-weight: 600;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    transform: translateZ(0);
 }
 
 @keyframes colorShift {
@@ -159,46 +182,46 @@
     }
 }
 
-/* Card Entrance Animations */
+/* Card Entrance Animations - FASTER */
 .animate-card {
     opacity: 0;
-    transform: translateY(30px);
-    animation: cardEntrance 0.6s ease forwards;
+    transform: translateY(20px) translateZ(0);
+    animation: cardEntrance 0.3s ease-out forwards;
 }
 
-.animate-card:nth-child(1) { animation-delay: 0.1s; }
-.animate-card:nth-child(2) { animation-delay: 0.2s; }
-.animate-card:nth-child(3) { animation-delay: 0.3s; }
-.animate-card:nth-child(4) { animation-delay: 0.4s; }
-.animate-card:nth-child(5) { animation-delay: 0.5s; }
-.animate-card:nth-child(6) { animation-delay: 0.6s; }
+.animate-card:nth-child(1) { animation-delay: 0.05s; }
+.animate-card:nth-child(2) { animation-delay: 0.1s; }
+.animate-card:nth-child(3) { animation-delay: 0.15s; }
+.animate-card:nth-child(4) { animation-delay: 0.2s; }
+.animate-card:nth-child(5) { animation-delay: 0.25s; }
+.animate-card:nth-child(6) { animation-delay: 0.3s; }
 
 @keyframes cardEntrance {
     to {
         opacity: 1;
-        transform: translateY(0);
+        transform: translateY(0) translateZ(0);
     }
 }
 
-/* Fade In Animations */
+/* Fade In Animations - FASTER */
 .fade-in {
-    animation: fadeIn 0.5s ease forwards;
+    animation: fadeIn 0.25s ease-out forwards;
 }
 
 .fade-in-up {
-    animation: fadeInUp 0.5s ease forwards;
+    animation: fadeInUp 0.25s ease-out forwards;
 }
 
 .fade-in-down {
-    animation: fadeInDown 0.5s ease forwards;
+    animation: fadeInDown 0.25s ease-out forwards;
 }
 
 .fade-in-left {
-    animation: fadeInLeft 0.5s ease forwards;
+    animation: fadeInLeft 0.25s ease-out forwards;
 }
 
 .fade-in-right {
-    animation: fadeInRight 0.5s ease forwards;
+    animation: fadeInRight 0.25s ease-out forwards;
 }
 
 @keyframes fadeIn {
@@ -209,61 +232,61 @@
 @keyframes fadeInUp {
     from {
         opacity: 0;
-        transform: translateY(20px);
+        transform: translateY(15px) translateZ(0);
     }
     to {
         opacity: 1;
-        transform: translateY(0);
+        transform: translateY(0) translateZ(0);
     }
 }
 
 @keyframes fadeInDown {
     from {
         opacity: 0;
-        transform: translateY(-20px);
+        transform: translateY(-15px) translateZ(0);
     }
     to {
         opacity: 1;
-        transform: translateY(0);
+        transform: translateY(0) translateZ(0);
     }
 }
 
 @keyframes fadeInLeft {
     from {
         opacity: 0;
-        transform: translateX(-20px);
+        transform: translateX(-15px) translateZ(0);
     }
     to {
         opacity: 1;
-        transform: translateX(0);
+        transform: translateX(0) translateZ(0);
     }
 }
 
 @keyframes fadeInRight {
     from {
         opacity: 0;
-        transform: translateX(20px);
+        transform: translateX(15px) translateZ(0);
     }
     to {
         opacity: 1;
-        transform: translateX(0);
+        transform: translateX(0) translateZ(0);
     }
 }
 
-/* Pulse Animation */
+/* Pulse Animation - FASTER */
 .pulse {
-    animation: pulse 2s infinite;
+    animation: pulse 1s infinite;
 }
 
 @keyframes pulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-    100% { transform: scale(1); }
+    0% { transform: scale(1) translateZ(0); }
+    50% { transform: scale(1.03) translateZ(0); }
+    100% { transform: scale(1) translateZ(0); }
 }
 
-/* Glow Animation */
+/* Glow Animation - FASTER */
 .glow {
-    animation: glow 2s ease-in-out infinite alternate;
+    animation: glow 1s ease-in-out infinite alternate;
 }
 
 @keyframes glow {

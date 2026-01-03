@@ -421,12 +421,12 @@ if (!defined('ABSPATH')) exit;
 
 <script>
 jQuery(document).ready(function($) {
-    // Loading screen and welcome animation
+    // Loading screen and welcome animation - OPTIMIZED for speed
     var loadingScreen = $('#zonatech-loading-screen');
     var welcomeOverlay = $('#zonatech-welcome-overlay');
     
-    // Hide loading screen after page loads
-    setTimeout(function() {
+    // Hide loading screen immediately (fast!)
+    requestAnimationFrame(function() {
         loadingScreen.addClass('fade-out');
         setTimeout(function() {
             loadingScreen.hide();
@@ -440,11 +440,11 @@ jQuery(document).ready(function($) {
                     welcomeOverlay.addClass('fade-out');
                     setTimeout(function() {
                         welcomeOverlay.hide();
-                    }, 500);
-                }, 2000);
+                    }, 150);
+                }, 800);
             }
-        }, 300);
-    }, 1000);
+        }, 100);
+    });
     
     // Mobile Navigation
     var hamburger = $('#hamburger-menu');
