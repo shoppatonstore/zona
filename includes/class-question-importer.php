@@ -83,19 +83,40 @@ class ZonaTech_Question_Importer {
                     }
                     
                     $current_question_number = $potential_number;
-                    $question_text = $this->clean_question_text($rest_of_line);
                     
-                    $current_question = array(
-                        'number' => $current_question_number,
-                        'question_text' => $question_text,
-                        'option_a' => '',
-                        'option_b' => '',
-                        'option_c' => '',
-                        'option_d' => '',
-                        'option_e' => '',
-                        'correct_answer' => ''
-                    );
-                    $collecting_option = null;
+                    // Check if options are inline with the question (common in CSV format)
+                    // Pattern: "Question text A. option1 B. option2 C. option3 D. option4"
+                    $inline_options = $this->extract_inline_options($rest_of_line);
+                    
+                    if ($inline_options !== null) {
+                        // Question has inline options
+                        $current_question = array(
+                            'number' => $current_question_number,
+                            'question_text' => $inline_options['question_text'],
+                            'option_a' => $inline_options['option_a'],
+                            'option_b' => $inline_options['option_b'],
+                            'option_c' => $inline_options['option_c'],
+                            'option_d' => $inline_options['option_d'],
+                            'option_e' => isset($inline_options['option_e']) ? $inline_options['option_e'] : '',
+                            'correct_answer' => ''
+                        );
+                        $collecting_option = null;
+                    } else {
+                        // Regular format - question on its own line
+                        $question_text = $this->clean_question_text($rest_of_line);
+                        
+                        $current_question = array(
+                            'number' => $current_question_number,
+                            'question_text' => $question_text,
+                            'option_a' => '',
+                            'option_b' => '',
+                            'option_c' => '',
+                            'option_d' => '',
+                            'option_e' => '',
+                            'correct_answer' => ''
+                        );
+                        $collecting_option = null;
+                    }
                     continue;
                 }
             }
@@ -152,6 +173,71 @@ class ZonaTech_Question_Importer {
     }
     
     /**
+     * Extract options that appear inline with question text
+     * Handles format like: "Question text A. opt1 B. opt2 C. opt3 D. opt4"
+     * 
+     * @param string $text The text containing question and inline options
+     * @return array|null Array with question_text and options, or null if no inline options found
+     */
+    private function extract_inline_options($text) {
+        // Look for pattern where A., B., C., D. (and optionally E.) appear in the same text
+        // Check if we have at least A, B, C, D options inline
+        if (!preg_match('/\b[Aa]\s*[.\)]/i', $text) || 
+            !preg_match('/\b[Bb]\s*[.\)]/i', $text) || 
+            !preg_match('/\b[Cc]\s*[.\)]/i', $text)) {
+            return null; // Not enough options found inline
+        }
+        
+        // Extract using regex - find where each option starts
+        // Pattern to match option markers: "A.", "B.", "C.", "D.", "E." (case insensitive)
+        $pattern = '/\s+([Aa])\s*[.\)]\s*/';
+        
+        // Find the position of option A
+        if (!preg_match($pattern, $text, $match, PREG_OFFSET_CAPTURE)) {
+            return null;
+        }
+        
+        $question_text = trim(substr($text, 0, $match[0][1]));
+        $options_text = substr($text, $match[0][1]);
+        
+        // Now parse individual options from the options text
+        // Split by option markers but keep the markers
+        $options = array(
+            'question_text' => $question_text,
+            'option_a' => '',
+            'option_b' => '',
+            'option_c' => '',
+            'option_d' => '',
+            'option_e' => ''
+        );
+        
+        // Extract each option
+        // Pattern: letter followed by . or ) then text until next option letter or end
+        if (preg_match('/[Aa]\s*[.\)]\s*(.*?)(?=\s+[Bb]\s*[.\)]|$)/is', $options_text, $m)) {
+            $options['option_a'] = trim($m[1]);
+        }
+        if (preg_match('/[Bb]\s*[.\)]\s*(.*?)(?=\s+[Cc]\s*[.\)]|$)/is', $options_text, $m)) {
+            $options['option_b'] = trim($m[1]);
+        }
+        if (preg_match('/[Cc]\s*[.\)]\s*(.*?)(?=\s+[Dd]\s*[.\)]|$)/is', $options_text, $m)) {
+            $options['option_c'] = trim($m[1]);
+        }
+        if (preg_match('/[Dd]\s*[.\)]\s*(.*?)(?=\s+[Ee]\s*[.\)]|$)/is', $options_text, $m)) {
+            $options['option_d'] = trim($m[1]);
+        }
+        if (preg_match('/[Ee]\s*[.\)]\s*(.*?)$/is', $options_text, $m)) {
+            $options['option_e'] = trim($m[1]);
+        }
+        
+        // Validate we have at least A, B, C, D
+        if (empty($options['option_a']) && empty($options['option_b'])) {
+            return null;
+        }
+        
+        return $options;
+    }
+    
+    /**
      * Parse answer key from text content
      * Format expected:
      * - Tabular format: "1. D    2. A    3. C    4. D" (multiple answers per line)
@@ -169,28 +255,62 @@ class ZonaTech_Question_Importer {
         // Split into lines
         $lines = explode("\n", $content);
         
+        // Track if we're in an answer key section
+        $in_answer_section = false;
+        $consecutive_answers = 0;
+        
         foreach ($lines as $line) {
             $line = trim($line);
             if (empty($line)) continue;
             
-            // Check if this line looks like an answer key line
-            // Answer key lines have MULTIPLE "number. letter" patterns on the same line
-            // e.g., "1. D    2. A    3. C    4. D    5. B    6. D"
-            // The key is having at least 3 consecutive answer patterns on one line
+            // Check if this line indicates we're in an answer key section
+            if (preg_match('/\b(ANSWER\s*KEY|ANSWERS?|SOLUTIONS?|CORRECT\s*ANSWERS?)\s*:?\s*/i', $line)) {
+                $in_answer_section = true;
+                continue;
+            }
             
-            // More strict pattern: number followed by period, then single letter A-E, then either space/tab or end
+            // Method 1: Check for multiple answers per line (tabular format)
+            // e.g., "1. D    2. A    3. C    4. D    5. B    6. D"
             preg_match_all('/(\d{1,3})\.\s*([A-Ea-e])(?=\s|$|,)/i', $line, $matches, PREG_SET_ORDER);
             
-            // Only consider this an answer line if we have 3+ matches on the same line
-            // This avoids matching option texts like "A. push" or question texts
             if (count($matches) >= 3) {
+                // This is definitely an answer line with multiple answers
+                $in_answer_section = true;
                 foreach ($matches as $match) {
                     $question_number = intval($match[1]);
                     $answer = strtoupper($match[2]);
-                    // Validate question number is reasonable
-                    if ($question_number >= 1 && $question_number <= 200) {
+                    if ($question_number >= 1 && $question_number <= 500) {
                         $answers[$question_number] = $answer;
                     }
+                }
+                $consecutive_answers = 0;
+                continue;
+            }
+            
+            // Method 2: Check for single answer per line format
+            // e.g., "1. A" or "1. D" on its own line
+            // Only match if line is JUST the answer pattern (nothing else significant)
+            if (preg_match('/^(\d{1,3})\.\s*([A-Ea-e])\s*$/i', $line, $match)) {
+                $question_number = intval($match[1]);
+                $answer = strtoupper($match[2]);
+                
+                // Validate question number is reasonable
+                if ($question_number >= 1 && $question_number <= 500) {
+                    // Check if this could be part of an answer key section
+                    // by looking for consecutive answer patterns
+                    if ($in_answer_section || isset($answers[$question_number - 1]) || $consecutive_answers > 0) {
+                        $answers[$question_number] = $answer;
+                        $consecutive_answers++;
+                    } else if ($question_number <= 3) {
+                        // If it's one of the first few questions, accept it as answer
+                        $answers[$question_number] = $answer;
+                        $consecutive_answers++;
+                    }
+                }
+            } else {
+                // Not an answer line - reset consecutive counter if not in dedicated section
+                if (!$in_answer_section) {
+                    $consecutive_answers = 0;
                 }
             }
         }

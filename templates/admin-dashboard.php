@@ -188,26 +188,67 @@ if (isset($_POST['bulk_upload_questions']) && wp_verify_nonce($_POST['bulk_nonce
                 $message_type = 'error';
             } else {
                 // Check if this is a document-style CSV (text content, not structured data)
-                // Document-style CSVs typically have numbered questions like "1. Question text"
-                $is_document_style = preg_match('/^\d+\.\s+[A-Za-z]/m', $full_content) && 
-                                    preg_match('/^[A-E]\.\s+/m', $full_content);
+                // Document-style CSVs can have various formats:
+                // 1. Numbered questions like "1. Question text" with options "A. text"
+                // 2. Multi-column format with headers like "Question,Option A,Option B..."
+                // 3. Answer keys at the end like "1. A", "2. D"
+                
+                // Check for structured CSV with our specific required columns
+                $first_line = strtok($full_content, "\n");
+                $first_line_lower = strtolower($first_line);
+                $has_structured_headers = (
+                    strpos($first_line_lower, 'exam_type') !== false && 
+                    strpos($first_line_lower, 'subject') !== false && 
+                    strpos($first_line_lower, 'question_text') !== false
+                );
+                
+                // Check for multi-column question format (like "Question,Option A,Option B,Option C,Option D")
+                $has_question_option_headers = (
+                    preg_match('/question/i', $first_line) && 
+                    preg_match('/option\s*[a-d]/i', $first_line)
+                );
+                
+                // Check for numbered questions anywhere in the content
+                $has_numbered_questions = preg_match('/\d+\.\s+[A-Za-z]/m', $full_content);
+                
+                // Check for answer keys in the content (e.g., "1. A", "2. D" standalone patterns)
+                $has_answer_keys = preg_match('/\b\d+\.\s*[A-E]\s*$/m', $full_content);
+                
+                // Determine if document-style parsing is needed
+                $is_document_style = ($has_numbered_questions || $has_question_option_headers) && !$has_structured_headers;
                 
                 if ($is_document_style) {
                     // Parse as document-style CSV (text with questions and options)
-                    // Clean the content - join lines and normalize
+                    // For multi-column CSVs, we need to join columns properly
                     $lines = explode("\n", $full_content);
                     $clean_lines = array();
-                    foreach ($lines as $line) {
-                        // Skip comment lines and empty lines
+                    $skip_header = $has_question_option_headers; // Skip the header row if detected
+                    
+                    foreach ($lines as $line_index => $line) {
+                        // Skip header line for multi-column format
+                        if ($skip_header && $line_index === 0) continue;
+                        
                         $line = trim($line);
                         if (empty($line) || strpos($line, '#') === 0) continue;
-                        // Remove trailing commas from CSV format
-                        $line = rtrim($line, ',');
-                        // Remove quotes
-                        $line = trim($line, '"');
+                        
                         // Skip download/watermark lines
                         if (stripos($line, 'myschoolgist') !== false || stripos($line, 'Download') !== false) continue;
-                        $clean_lines[] = $line;
+                        
+                        // For multi-column CSV, parse as CSV row and join columns
+                        if ($has_question_option_headers && strpos($line, ',') !== false) {
+                            // Parse CSV row
+                            $columns = str_getcsv($line);
+                            // Clean and join columns with spaces
+                            $joined = implode(' ', array_map('trim', $columns));
+                            // Remove multiple spaces
+                            $joined = preg_replace('/\s+/', ' ', $joined);
+                            $clean_lines[] = trim($joined);
+                        } else {
+                            // Regular text line - just clean it
+                            $line = rtrim($line, ',');
+                            $line = trim($line, '"');
+                            $clean_lines[] = $line;
+                        }
                     }
                     $content = implode("\n", $clean_lines);
                     
