@@ -74,8 +74,8 @@
 }
 
 .sidebar-logo-img {
-    width: 50px;
-    height: 50px;
+    width: 65px;
+    height: 65px;
     object-fit: contain;
     border-radius: 0;
     padding: 0;
@@ -84,12 +84,12 @@
     background: transparent;
     transition: all 0.3s ease;
     animation: logo-color-shift 4s ease-in-out infinite;
-    filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.6));
+    filter: drop-shadow(0 0 10px rgba(139, 92, 246, 0.7));
 }
 
 .sidebar-logo-img:hover {
     transform: scale(1.1);
-    filter: drop-shadow(0 0 15px rgba(139, 92, 246, 0.9)) brightness(1.1);
+    filter: drop-shadow(0 0 20px rgba(139, 92, 246, 0.95)) brightness(1.15);
     animation-play-state: paused;
 }
 
@@ -107,6 +107,68 @@
     75% {
         filter: drop-shadow(0 0 12px rgba(167, 139, 250, 0.8)) hue-rotate(10deg);
     }
+}
+
+/* Dashboard Icons - larger and more visible with color shift */
+.dashboard-sidebar i.fa,
+.dashboard-sidebar i.fas,
+.dashboard-sidebar i.far,
+.dashboard-sidebar i.fab,
+.dashboard-sidebar .fa-solid,
+.dashboard-sidebar .fa-regular,
+.dashboard-sidebar .fa-brands,
+.dashboard-main i.fa,
+.dashboard-main i.fas,
+.dashboard-main i.far,
+.dashboard-main i.fab,
+.dashboard-main .fa-solid,
+.dashboard-main .fa-regular,
+.dashboard-main .fa-brands {
+    font-size: 1.3em;
+    color: var(--zona-purple);
+    transition: all 0.3s ease;
+    animation: icon-color-shift 3s ease-in-out infinite;
+}
+
+/* Sidebar nav icons - bigger */
+.sidebar-nav-item i {
+    font-size: 1.4em !important;
+    min-width: 24px;
+}
+
+/* Stats and card icons - bigger */
+.stats-item i,
+.quick-action-btn i,
+.dashboard-card-header i {
+    font-size: 1.6em !important;
+}
+
+/* Icon color shift animation for dashboard */
+@keyframes icon-color-shift {
+    0%, 100% {
+        filter: drop-shadow(0 0 4px rgba(139, 92, 246, 0.5));
+        color: #8b5cf6;
+    }
+    25% {
+        filter: drop-shadow(0 0 6px rgba(167, 139, 250, 0.7));
+        color: #a78bfa;
+    }
+    50% {
+        filter: drop-shadow(0 0 8px rgba(124, 58, 237, 0.8));
+        color: #7c3aed;
+    }
+    75% {
+        filter: drop-shadow(0 0 6px rgba(167, 139, 250, 0.7));
+        color: #a78bfa;
+    }
+}
+
+/* Icon hover effect */
+.sidebar-nav-item:hover i,
+.quick-action-btn:hover i,
+.dashboard-card-header:hover i {
+    transform: scale(1.15);
+    filter: brightness(1.2) drop-shadow(0 0 8px rgba(139, 92, 246, 0.9));
 }
 
 /* User Info in Sidebar */

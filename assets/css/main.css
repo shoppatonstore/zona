@@ -452,8 +452,8 @@ select.form-control option {
 .sidebar-logo-img,
 .footer-logo-img,
 .admin-logo-img {
-    width: 50px;
-    height: 50px;
+    width: 65px;
+    height: 65px;
     object-fit: contain;
     border-radius: 0;
     padding: 0;
@@ -462,7 +462,7 @@ select.form-control option {
     background: transparent;
     transition: all 0.3s ease;
     animation: logo-color-shift 4s ease-in-out infinite;
-    filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.6));
+    filter: drop-shadow(0 0 10px rgba(139, 92, 246, 0.7));
 }
 
 .zonatech-logo-img:hover,
@@ -470,18 +470,18 @@ select.form-control option {
 .footer-logo-img:hover,
 .admin-logo-img:hover {
     transform: scale(1.1);
-    filter: drop-shadow(0 0 15px rgba(139, 92, 246, 0.9)) brightness(1.1);
+    filter: drop-shadow(0 0 20px rgba(139, 92, 246, 0.95)) brightness(1.15);
     animation-play-state: paused;
 }
 
 .footer-logo-img {
-    width: 40px;
-    height: 40px;
+    width: 55px;
+    height: 55px;
 }
 
 .admin-logo-img {
-    width: 60px;
-    height: 60px;
+    width: 75px;
+    height: 75px;
 }
 
 /* Logo color shift animation - runs through the logo */
@@ -508,8 +508,18 @@ select.form-control option {
 .zonatech-container .fa-solid,
 .zonatech-container .fa-regular,
 .zonatech-container .fa-brands {
-    animation: icon-color-pulse 3s ease-in-out infinite;
-    animation-play-state: paused;
+    font-size: 1.3em;
+    color: var(--zona-purple);
+    transition: all 0.3s ease;
+    animation: icon-color-shift 3s ease-in-out infinite;
+}
+
+/* Larger icons in key areas */
+.sidebar-nav-item i,
+.quick-action-btn i,
+.stats-card i,
+.service-card i {
+    font-size: 1.5em;
 }
 
 .zonatech-container i:hover,
@@ -517,18 +527,26 @@ select.form-control option {
 .zonatech-container a:hover i,
 .sidebar-nav-item:hover i,
 .quick-action-btn:hover i {
-    animation-play-state: running;
+    transform: scale(1.15);
+    filter: brightness(1.2) drop-shadow(0 0 8px rgba(139, 92, 246, 0.8));
 }
 
-/* Icon color pulse animation */
-@keyframes icon-color-pulse {
+/* Icon color shift animation - same as logo */
+@keyframes icon-color-shift {
     0%, 100% {
-        filter: brightness(1);
-        text-shadow: 0 0 5px rgba(139, 92, 246, 0.3);
+        filter: drop-shadow(0 0 4px rgba(139, 92, 246, 0.5));
+    }
+    25% {
+        filter: drop-shadow(0 0 6px rgba(167, 139, 250, 0.7));
+        color: #a78bfa;
     }
     50% {
-        filter: brightness(1.2);
-        text-shadow: 0 0 15px rgba(139, 92, 246, 0.7);
+        filter: drop-shadow(0 0 8px rgba(124, 58, 237, 0.8));
+        color: #7c3aed;
+    }
+    75% {
+        filter: drop-shadow(0 0 6px rgba(167, 139, 250, 0.7));
+        color: #a78bfa;
     }
 }
 
