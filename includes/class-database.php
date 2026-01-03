@@ -142,6 +142,8 @@ class ZonaTech_Database {
             file_url varchar(255),
             admin_notes text,
             purchase_id bigint(20),
+            api_response longtext,
+            api_verified_at datetime,
             fulfilled_at datetime,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id),

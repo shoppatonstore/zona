@@ -2329,7 +2329,24 @@ $current_user = wp_get_current_user();
                 );
                 $pending_nin = $wpdb->get_var("SELECT COUNT(*) FROM $table_nin WHERE status = 'paid'") ?? 0;
                 $fulfilled_nin = $wpdb->get_var("SELECT COUNT(*) FROM $table_nin WHERE status = 'fulfilled'") ?? 0;
+                
+                // Check if GVerifyer API is configured
+                $gverifyer_configured = !empty(get_option('zonatech_gverifyer_api_key', ''));
                 ?>
+                
+                <?php if ($gverifyer_configured): ?>
+                <div style="background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 10px; padding: 15px; margin-bottom: 20px;">
+                    <p style="margin: 0; color: #22c55e; font-size: 14px;">
+                        <i class="fas fa-bolt"></i> <strong>GVerifyer API Connected</strong> - Click "Auto Verify" on pending requests to automatically verify NIN using the GVerifyer API.
+                    </p>
+                </div>
+                <?php else: ?>
+                <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 10px; padding: 15px; margin-bottom: 20px;">
+                    <p style="margin: 0; color: #f59e0b; font-size: 14px;">
+                        <i class="fas fa-info-circle"></i> <strong>Enable Auto-Verification:</strong> Configure your GVerifyer API key in <a href="#" onclick="openModal('settingsModal'); return false;" style="color: #8b5cf6; font-weight: 600;">Settings</a> to automatically verify NIN requests.
+                    </p>
+                </div>
+                <?php endif; ?>
                 
                 <div class="stats-grid">
                     <div class="stat-card">
@@ -2413,8 +2430,13 @@ $current_user = wp_get_current_user();
                                 <td><?php echo date('M j, Y', strtotime($req->created_at)); ?></td>
                                 <td>
                                     <?php if ($req->status === 'paid'): ?>
+                                        <?php if ($gverifyer_configured): ?>
+                                        <button onclick="autoVerifyNIN(<?php echo $req->id; ?>, '<?php echo esc_js($req->display_name); ?>', '<?php echo esc_js($form_data['verification_method'] ?? 'nin_number'); ?>')" class="btn-admin" style="padding: 6px 12px; font-size: 12px; background: linear-gradient(135deg, #22c55e, #16a34a); color: white; border: none; margin-right: 5px;">
+                                            <i class="fas fa-bolt"></i> Auto Verify
+                                        </button>
+                                        <?php endif; ?>
                                         <button onclick="openFulfillModal(<?php echo $req->id; ?>, '<?php echo esc_js($req->display_name); ?>', '<?php echo esc_js($req->user_email); ?>', '<?php echo esc_js($req->nin_number); ?>', '<?php echo esc_js($service_name); ?>', '<?php echo esc_js($user_phone); ?>')" class="btn-admin btn-admin-primary" style="padding: 6px 12px; font-size: 12px;">
-                                            <i class="fas fa-upload"></i> Fulfill
+                                            <i class="fas fa-upload"></i> Manual
                                         </button>
                                     <?php else: ?>
                                         <button onclick="openFulfillModal(<?php echo $req->id; ?>, '<?php echo esc_js($req->display_name); ?>', '<?php echo esc_js($req->user_email); ?>', '<?php echo esc_js($req->nin_number); ?>', '<?php echo esc_js($service_name); ?>', '<?php echo esc_js($user_phone); ?>')" class="btn-admin btn-admin-outline" style="padding: 6px 12px; font-size: 12px;">
@@ -2823,6 +2845,80 @@ $current_user = wp_get_current_user();
                     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                         <span style="background: rgba(34, 197, 94, 0.2); color: #22c55e; padding: 6px 12px; border-radius: 6px; font-size: 12px;"><strong>WAEC</strong> - ₦3,850</span>
                         <span style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; padding: 6px 12px; border-radius: 6px; font-size: 12px;"><strong>NECO</strong> - ₦2,550</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- GVerifyer API Section -->
+            <div style="margin-bottom: 30px; padding: 20px; background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 12px;">
+                <?php 
+                $gverifyer_api_key = get_option('zonatech_gverifyer_api_key', '');
+                $gverifyer_configured = !empty($gverifyer_api_key);
+                ?>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                    <h3 style="font-size: 18px; display: flex; align-items: center; gap: 10px; margin: 0;">
+                        <i class="fas fa-id-card" style="color: #3b82f6;"></i> GVerifyer API (NIN Auto-Verification)
+                    </h3>
+                    <?php if ($gverifyer_configured): ?>
+                    <span style="background: rgba(16, 185, 129, 0.2); color: #10b981; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;">
+                        <i class="fas fa-check-circle"></i> CONFIGURED
+                    </span>
+                    <?php else: ?>
+                    <span style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;">
+                        <i class="fas fa-exclamation-circle"></i> NOT CONFIGURED
+                    </span>
+                    <?php endif; ?>
+                </div>
+                
+                <div style="padding: 12px 15px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; margin-bottom: 15px;">
+                    <p style="font-size: 13px; color: rgba(255,255,255,0.8); margin: 0;">
+                        <i class="fas fa-info-circle" style="color: #3b82f6;"></i> 
+                        GVerifyer enables <strong>automatic NIN verification</strong> after payment. Get your API key from <a href="https://gverifyer.com" target="_blank" style="color: #3b82f6; font-weight: 600;">gverifyer.com</a>
+                    </p>
+                </div>
+                
+                <!-- Supported Verification Methods -->
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px;">
+                    <div style="padding: 10px; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 8px; text-align: center;">
+                        <p style="font-size: 12px; color: #22c55e; margin: 0; font-weight: 600;"><i class="fas fa-id-badge"></i> NIN Number</p>
+                        <p style="font-size: 11px; color: rgba(255,255,255,0.6); margin: 5px 0 0 0;">Verify by 11-digit NIN</p>
+                    </div>
+                    <div style="padding: 10px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 8px; text-align: center;">
+                        <p style="font-size: 12px; color: #a78bfa; margin: 0; font-weight: 600;"><i class="fas fa-phone"></i> Phone Number</p>
+                        <p style="font-size: 11px; color: rgba(255,255,255,0.6); margin: 5px 0 0 0;">Verify by phone</p>
+                    </div>
+                    <div style="padding: 10px; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; text-align: center;">
+                        <p style="font-size: 12px; color: #f59e0b; margin: 0; font-weight: 600;"><i class="fas fa-user"></i> Demographics</p>
+                        <p style="font-size: 11px; color: rgba(255,255,255,0.6); margin: 5px 0 0 0;">Name, DOB, Gender</p>
+                    </div>
+                </div>
+                
+                <div id="gverifyer-form">
+                    <div class="admin-form-group">
+                        <label><i class="fas fa-key"></i> GVerifyer API Key <?php echo $gverifyer_configured ? '<span style="color: #10b981;"><i class="fas fa-check-circle"></i> Set</span>' : '<span style="color: #ef4444;">Not Set</span>'; ?></label>
+                        <input type="password" id="gverifyer_api_key" value="<?php echo $gverifyer_configured ? '••••••••••••••••' : ''; ?>" placeholder="Your GVerifyer API key" style="font-family: monospace;" <?php echo $gverifyer_configured ? 'onfocus="if(this.value===\'••••••••••••••••\')this.value=\'\';"' : ''; ?>>
+                        <small style="color: rgba(255,255,255,0.5); font-size: 11px; display: block; margin-top: 5px;">Your API key from GVerifyer dashboard</small>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px;">
+                        <button type="button" onclick="saveGVerifyerSettings()" class="admin-form-submit" style="background: linear-gradient(135deg, #3b82f6, #2563eb); flex: 1;">
+                            <i class="fas fa-save"></i> Save GVerifyer Key
+                        </button>
+                        <button type="button" onclick="testGVerifyerConnection()" class="admin-form-submit" style="background: linear-gradient(135deg, #22c55e, #16a34a); flex: 1;">
+                            <i class="fas fa-plug"></i> Test Connection
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="gverifyer-result" style="margin-top: 15px; display: none;"></div>
+                
+                <!-- API Endpoints Info -->
+                <div style="margin-top: 15px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                    <p style="font-size: 12px; color: rgba(255,255,255,0.6); margin: 0 0 8px 0;"><i class="fas fa-link"></i> API Endpoints:</p>
+                    <div style="font-size: 10px; color: #a78bfa; font-family: monospace;">
+                        <p style="margin: 3px 0;">POST https://gverifyer.com/api/verification/nin_by_nin.php</p>
+                        <p style="margin: 3px 0;">POST https://gverifyer.com/api/verification/nin_by_phone.php</p>
+                        <p style="margin: 3px 0;">POST https://gverifyer.com/api/verification/nin_by_demo.php</p>
                     </div>
                 </div>
             </div>
@@ -3278,6 +3374,117 @@ $current_user = wp_get_current_user();
             }
             
             return confirm('Are you sure you want to delete ALL ' + examType.toUpperCase() + ' ' + subject + ' ' + year + ' questions?\n\nThis action cannot be undone!');
+        }
+        
+        // GVerifyer API Functions
+        function saveGVerifyerSettings() {
+            var apiKey = document.getElementById('gverifyer_api_key').value;
+            
+            if (!apiKey || apiKey === '••••••••••••••••') {
+                showGVerifyerResult('Please enter your API key.', 'error');
+                return;
+            }
+            
+            showGVerifyerResult('<i class="fas fa-spinner fa-spin"></i> Saving...', 'info');
+            
+            jQuery.ajax({
+                url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                type: 'POST',
+                data: {
+                    action: 'zonatech_save_gverifyer_settings',
+                    nonce: '<?php echo wp_create_nonce('zonatech_gverifyer_nonce'); ?>',
+                    api_key: apiKey
+                },
+                success: function(response) {
+                    if (response.success) {
+                        showGVerifyerResult('<i class="fas fa-check-circle"></i> ' + response.data.message, 'success');
+                        document.getElementById('gverifyer_api_key').value = '••••••••••••••••';
+                    } else {
+                        showGVerifyerResult('<i class="fas fa-exclamation-circle"></i> ' + (response.data.message || 'Failed to save settings.'), 'error');
+                    }
+                },
+                error: function() {
+                    showGVerifyerResult('<i class="fas fa-exclamation-circle"></i> Network error. Please try again.', 'error');
+                }
+            });
+        }
+        
+        function testGVerifyerConnection() {
+            showGVerifyerResult('<i class="fas fa-spinner fa-spin"></i> Testing connection...', 'info');
+            
+            jQuery.ajax({
+                url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                type: 'POST',
+                data: {
+                    action: 'zonatech_test_gverifyer_api',
+                    nonce: '<?php echo wp_create_nonce('zonatech_gverifyer_nonce'); ?>'
+                },
+                success: function(response) {
+                    if (response.success) {
+                        showGVerifyerResult('<i class="fas fa-check-circle"></i> ' + response.data.message, 'success');
+                    } else {
+                        showGVerifyerResult('<i class="fas fa-exclamation-circle"></i> ' + (response.data.message || 'Connection failed.'), 'error');
+                    }
+                },
+                error: function() {
+                    showGVerifyerResult('<i class="fas fa-exclamation-circle"></i> Network error. Please try again.', 'error');
+                }
+            });
+        }
+        
+        function showGVerifyerResult(message, type) {
+            var resultDiv = document.getElementById('gverifyer-result');
+            var bgColor = type === 'success' ? 'rgba(34, 197, 94, 0.2)' : 
+                         type === 'error' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(59, 130, 246, 0.2)';
+            var textColor = type === 'success' ? '#22c55e' : 
+                           type === 'error' ? '#ef4444' : '#3b82f6';
+            
+            resultDiv.innerHTML = '<div style="padding: 12px; background: ' + bgColor + '; border-radius: 8px; color: ' + textColor + ';">' + message + '</div>';
+            resultDiv.style.display = 'block';
+        }
+        
+        // Auto Verify NIN using GVerifyer API
+        function autoVerifyNIN(requestId, userName, verificationMethod) {
+            if (!confirm('Auto verify NIN for ' + userName + ' using GVerifyer API?\n\nThis will call the GVerifyer API and send the result to the user.')) {
+                return;
+            }
+            
+            // Show loading state
+            var btn = event.target.closest('button');
+            var originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+            btn.disabled = true;
+            
+            // Map verification method
+            var method = 'nin';
+            if (verificationMethod === 'phone_number') method = 'phone';
+            else if (verificationMethod === 'demographic') method = 'demographic';
+            
+            jQuery.ajax({
+                url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                type: 'POST',
+                data: {
+                    action: 'zonatech_gverifyer_verify',
+                    nonce: '<?php echo wp_create_nonce('zonatech_gverifyer_nonce'); ?>',
+                    request_id: requestId,
+                    verification_method: method
+                },
+                success: function(response) {
+                    if (response.success) {
+                        alert('✅ Verification Successful!\n\n' + JSON.stringify(response.data.data, null, 2));
+                        location.reload();
+                    } else {
+                        alert('❌ Verification Failed:\n\n' + (response.data.message || 'Unknown error'));
+                        btn.innerHTML = originalHtml;
+                        btn.disabled = false;
+                    }
+                },
+                error: function() {
+                    alert('❌ Network error. Please try again.');
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
+                }
+            });
         }
     </script>
 </body>

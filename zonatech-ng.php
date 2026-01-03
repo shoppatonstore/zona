@@ -90,6 +90,7 @@ class ZonaTech_NG {
         require_once ZONATECH_PLUGIN_DIR . 'includes/class-feedback.php';
         require_once ZONATECH_PLUGIN_DIR . 'includes/class-otapay.php';
         require_once ZONATECH_PLUGIN_DIR . 'includes/class-question-importer.php';
+        require_once ZONATECH_PLUGIN_DIR . 'includes/class-gverifyer-api.php';
         require_once ZONATECH_PLUGIN_DIR . 'admin/class-admin.php';
     }
     
