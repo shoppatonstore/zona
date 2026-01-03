@@ -212,7 +212,8 @@ if (isset($_POST['bulk_upload_questions']) && wp_verify_nonce($_POST['bulk_nonce
                 $has_numbered_questions = preg_match('/\d+\.\s+[A-Za-z]/m', $full_content);
                 
                 // Check for answer keys in the content (e.g., "1. A", "2. D" standalone patterns)
-                $has_answer_keys = preg_match('/\b\d+\.\s*[A-E]\s*$/m', $full_content);
+                // Match lines that are just answer patterns with optional whitespace
+                $has_answer_keys = preg_match('/^\s*\d+\.\s*[A-E]\s*$/mi', $full_content);
                 
                 // Determine if document-style parsing is needed
                 $is_document_style = ($has_numbered_questions || $has_question_option_headers) && !$has_structured_headers;

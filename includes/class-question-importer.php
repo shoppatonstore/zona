@@ -181,15 +181,15 @@ class ZonaTech_Question_Importer {
      */
     private function extract_inline_options($text) {
         // Look for pattern where A., B., C., D. (and optionally E.) appear in the same text
-        // Check if we have at least A, B, C, D options inline
-        if (!preg_match('/\b[Aa]\s*[.\)]/i', $text) || 
-            !preg_match('/\b[Bb]\s*[.\)]/i', $text) || 
-            !preg_match('/\b[Cc]\s*[.\)]/i', $text)) {
+        // Check if we have at least A, B, C options inline (D may be at end)
+        if (!preg_match('/[Aa]\s*[.\)]/', $text) || 
+            !preg_match('/[Bb]\s*[.\)]/', $text) || 
+            !preg_match('/[Cc]\s*[.\)]/', $text)) {
             return null; // Not enough options found inline
         }
         
         // Extract using regex - find where each option starts
-        // Pattern to match option markers: "A.", "B.", "C.", "D.", "E." (case insensitive)
+        // Pattern to match option A marker with space before it
         $pattern = '/\s+([Aa])\s*[.\)]\s*/';
         
         // Find the position of option A
@@ -201,7 +201,6 @@ class ZonaTech_Question_Importer {
         $options_text = substr($text, $match[0][1]);
         
         // Now parse individual options from the options text
-        // Split by option markers but keep the markers
         $options = array(
             'question_text' => $question_text,
             'option_a' => '',
@@ -211,7 +210,7 @@ class ZonaTech_Question_Importer {
             'option_e' => ''
         );
         
-        // Extract each option
+        // Extract each option using non-greedy matching
         // Pattern: letter followed by . or ) then text until next option letter or end
         if (preg_match('/[Aa]\s*[.\)]\s*(.*?)(?=\s+[Bb]\s*[.\)]|$)/is', $options_text, $m)) {
             $options['option_a'] = trim($m[1]);
@@ -229,8 +228,14 @@ class ZonaTech_Question_Importer {
             $options['option_e'] = trim($m[1]);
         }
         
-        // Validate we have at least A, B, C, D
-        if (empty($options['option_a']) && empty($options['option_b'])) {
+        // Validate we have at least 3 options (A, B, C or A, B, D, etc.)
+        $non_empty_count = 0;
+        if (!empty($options['option_a'])) $non_empty_count++;
+        if (!empty($options['option_b'])) $non_empty_count++;
+        if (!empty($options['option_c'])) $non_empty_count++;
+        if (!empty($options['option_d'])) $non_empty_count++;
+        
+        if ($non_empty_count < 2) {
             return null;
         }
         
