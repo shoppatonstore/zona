@@ -1,3 +1,9 @@
+/* Font Awesome CSS Import (Fallback) - Must be at top of file */
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css');
+
+/* Google Fonts - preconnect for faster loading */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 /**
  * ZonaTech NG - Main Styles
  * Color Scheme: Reflective Black, Sparkling Purple, White
@@ -21,12 +27,6 @@
         transition-duration: 0.01ms !important;
     }
 }
-
-/* Font Awesome CSS Import (Fallback) */
-@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css');
-
-/* Google Fonts - preconnect for faster loading */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
     /* Primary Colors */
