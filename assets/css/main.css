@@ -405,6 +405,26 @@ select.form-control option {
     color: var(--zona-white);
 }
 
+/* Checkbox and Radio - Purple Theme */
+.zonatech-container input[type="checkbox"],
+.zonatech-container input[type="radio"] {
+    accent-color: #8b5cf6;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.zonatech-container input[type="checkbox"]:checked,
+.zonatech-container input[type="radio"]:checked {
+    accent-color: #8b5cf6;
+}
+
+.zonatech-container input[type="checkbox"]:focus,
+.zonatech-container input[type="radio"]:focus {
+    outline: 2px solid rgba(139, 92, 246, 0.5);
+    outline-offset: 2px;
+}
+
 /* Grid System */
 .row {
     display: flex;

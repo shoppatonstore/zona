@@ -90,17 +90,13 @@ $session_expired = isset($_GET['session_expired']) && $_GET['session_expired'] =
             <form id="zonatech-login-form">
                 <div class="form-group">
                     <label for="email" class="text-white"><i class="fas fa-envelope"></i> Email Address</label>
-                    <div class="input-with-icon">
-                        <i class="fas fa-envelope input-icon"></i>
-                        <input type="email" name="email" id="email" class="form-control form-control-icon" placeholder="Enter your email" required>
-                    </div>
+                    <input type="email" name="email" id="email" class="form-control" placeholder="Enter your email" required>
                 </div>
                 
                 <div class="form-group">
                     <label for="password" class="text-white"><i class="fas fa-lock"></i> Password</label>
-                    <div class="input-with-icon" style="position: relative;">
-                        <i class="fas fa-lock input-icon"></i>
-                        <input type="password" name="password" id="password" class="form-control form-control-icon" placeholder="Enter your password" required style="padding-right: 45px;">
+                    <div style="position: relative;">
+                        <input type="password" name="password" id="password" class="form-control" placeholder="Enter your password" required style="padding-right: 45px;">
                         <button type="button" id="toggle-password" class="password-toggle-btn" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #8b5cf6; padding: 5px; z-index: 2; font-size: 1.1rem;">
                             <i class="fas fa-eye" id="password-toggle-icon"></i>
                         </button>
@@ -138,10 +134,7 @@ $session_expired = isset($_GET['session_expired']) && $_GET['session_expired'] =
             <form id="zonatech-reset-form">
                 <div class="form-group">
                     <label for="reset-email" class="text-white"><i class="fas fa-envelope"></i> Email Address</label>
-                    <div class="input-with-icon">
-                        <i class="fas fa-envelope input-icon"></i>
-                        <input type="email" name="email" id="reset-email" class="form-control form-control-icon" placeholder="Enter your email" required>
-                    </div>
+                    <input type="email" name="email" id="reset-email" class="form-control" placeholder="Enter your email" required>
                 </div>
                 
                 <div class="d-flex gap-2">
