@@ -452,15 +452,17 @@ select.form-control option {
 .sidebar-logo-img,
 .footer-logo-img,
 .admin-logo-img {
-    width: 70px;
-    height: 70px;
+    width: 50px;
+    height: 50px;
     object-fit: contain;
-    border-radius: 12px;
-    padding: 4px;
-    border: 2px solid rgba(139, 92, 246, 0.6);
-    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4);
+    border-radius: 0;
+    padding: 0;
+    border: none;
+    box-shadow: none;
+    background: transparent;
     transition: all 0.3s ease;
-    animation: logo-glow 3s ease-in-out infinite;
+    animation: logo-color-shift 4s ease-in-out infinite;
+    filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.6));
 }
 
 .zonatech-logo-img:hover,
@@ -468,29 +470,65 @@ select.form-control option {
 .footer-logo-img:hover,
 .admin-logo-img:hover {
     transform: scale(1.1);
-    box-shadow: 0 6px 30px rgba(139, 92, 246, 0.6);
+    filter: drop-shadow(0 0 15px rgba(139, 92, 246, 0.9)) brightness(1.1);
     animation-play-state: paused;
 }
 
 .footer-logo-img {
-    width: 55px;
-    height: 55px;
+    width: 40px;
+    height: 40px;
 }
 
 .admin-logo-img {
-    width: 80px;
-    height: 80px;
+    width: 60px;
+    height: 60px;
 }
 
-/* Logo glow animation */
-@keyframes logo-glow {
+/* Logo color shift animation - runs through the logo */
+@keyframes logo-color-shift {
     0%, 100% {
-        box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4);
-        border-color: rgba(139, 92, 246, 0.6);
+        filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.6)) hue-rotate(0deg);
+    }
+    25% {
+        filter: drop-shadow(0 0 12px rgba(167, 139, 250, 0.8)) hue-rotate(15deg);
     }
     50% {
-        box-shadow: 0 4px 35px rgba(139, 92, 246, 0.7), 0 0 50px rgba(139, 92, 246, 0.3);
-        border-color: rgba(139, 92, 246, 1);
+        filter: drop-shadow(0 0 15px rgba(124, 58, 237, 0.9)) hue-rotate(-15deg);
+    }
+    75% {
+        filter: drop-shadow(0 0 12px rgba(167, 139, 250, 0.8)) hue-rotate(10deg);
+    }
+}
+
+/* Icon color animation - apply to all icons across the website */
+.zonatech-container i.fa,
+.zonatech-container i.fas,
+.zonatech-container i.far,
+.zonatech-container i.fab,
+.zonatech-container .fa-solid,
+.zonatech-container .fa-regular,
+.zonatech-container .fa-brands {
+    animation: icon-color-pulse 3s ease-in-out infinite;
+    animation-play-state: paused;
+}
+
+.zonatech-container i:hover,
+.zonatech-container .btn:hover i,
+.zonatech-container a:hover i,
+.sidebar-nav-item:hover i,
+.quick-action-btn:hover i {
+    animation-play-state: running;
+}
+
+/* Icon color pulse animation */
+@keyframes icon-color-pulse {
+    0%, 100% {
+        filter: brightness(1);
+        text-shadow: 0 0 5px rgba(139, 92, 246, 0.3);
+    }
+    50% {
+        filter: brightness(1.2);
+        text-shadow: 0 0 15px rgba(139, 92, 246, 0.7);
     }
 }
 
