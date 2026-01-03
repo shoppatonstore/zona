@@ -109,7 +109,7 @@ $session_expired = isset($_GET['session_expired']) && $_GET['session_expired'] =
                 
                 <div class="form-group d-flex justify-between align-center">
                     <label style="display: flex; align-items: center; gap: 0.5rem; margin: 0; cursor: pointer;">
-                        <input type="checkbox" name="remember" style="width: auto;">
+                        <input type="checkbox" name="remember" style="width: auto; accent-color: #8b5cf6;">
                         <span style="font-size: 0.8rem;" class="text-white">Remember me</span>
                     </label>
                     <a href="#" id="forgot-password-link" style="font-size: 0.8rem;"><i class="fas fa-question-circle"></i> Forgot password?</a>
