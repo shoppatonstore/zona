@@ -101,7 +101,7 @@ $session_expired = isset($_GET['session_expired']) && $_GET['session_expired'] =
                     <div class="input-with-icon" style="position: relative;">
                         <i class="fas fa-lock input-icon"></i>
                         <input type="password" name="password" id="password" class="form-control form-control-icon" placeholder="Enter your password" required style="padding-right: 45px;">
-                        <button type="button" id="toggle-password" class="password-toggle-btn" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: rgba(255,255,255,0.5); padding: 5px; z-index: 2;">
+                        <button type="button" id="toggle-password" class="password-toggle-btn" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #8b5cf6; padding: 5px; z-index: 2; font-size: 1.1rem;">
                             <i class="fas fa-eye" id="password-toggle-icon"></i>
                         </button>
                     </div>
@@ -180,11 +180,11 @@ jQuery(document).ready(function($) {
         if (passwordField.attr('type') === 'password') {
             passwordField.attr('type', 'text');
             toggleIcon.removeClass('fa-eye').addClass('fa-eye-slash');
-            $(this).css('color', 'rgba(139, 92, 246, 0.8)');
+            $(this).css('color', '#a78bfa'); // lighter purple when showing
         } else {
             passwordField.attr('type', 'password');
             toggleIcon.removeClass('fa-eye-slash').addClass('fa-eye');
-            $(this).css('color', 'rgba(255,255,255,0.5)');
+            $(this).css('color', '#8b5cf6'); // purple when hidden
         }
     });
     
