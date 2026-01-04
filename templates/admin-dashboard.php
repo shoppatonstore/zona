@@ -300,8 +300,8 @@ if (isset($_POST['bulk_upload_questions']) && wp_verify_nonce($_POST['bulk_nonce
                         // Use the question importer to parse questions
                         $importer = ZonaTech_Question_Importer::get_instance();
                         
-                        // Parse by year sections (start from 2010 by default)
-                        $year_sections = $importer->parse_by_year($content, 2010);
+                        // Parse by year sections (start from 1970 to include older exam years)
+                        $year_sections = $importer->parse_by_year($content, 1970);
                         
                         if (!empty($year_sections)) {
                             // Import all year sections
@@ -387,7 +387,7 @@ if (isset($_POST['bulk_upload_questions']) && wp_verify_nonce($_POST['bulk_nonce
                                 }
                             }
                         } else {
-                            $message = "No year sections found (years 2010 onwards). Make sure your document has section headers like 'USE OF ENGLISH 2010'.";
+                            $message = "No year sections found. Make sure your document has section headers like 'USE OF ENGLISH 1978' or 'USE OF ENGLISH 2020'.";
                             $message_type = 'error';
                         }
                     }
