@@ -143,12 +143,20 @@ class ZonaTech_Ajax_Handlers {
             wp_send_json_error(array('message' => 'Unauthorized access.'));
         }
         
+        $api_url = sanitize_text_field($_POST['api_url'] ?? '');
         $instance_id = sanitize_text_field($_POST['instance_id'] ?? '');
         $token = sanitize_text_field($_POST['token'] ?? '');
         $admin_whatsapp = sanitize_text_field($_POST['admin_whatsapp'] ?? '');
         
-        if (empty($instance_id)) {
-            wp_send_json_error(array('message' => 'Instance ID is required.'));
+        // If API URL is provided, extract instance ID from it
+        if (!empty($api_url) && empty($instance_id)) {
+            if (preg_match('/ultramsg\.com\/([^\/]+)/', $api_url, $matches)) {
+                $instance_id = $matches[1];
+            }
+        }
+        
+        if (empty($instance_id) && empty($api_url)) {
+            wp_send_json_error(array('message' => 'API URL or Instance ID is required.'));
         }
         
         if (empty($token) || $token === '••••••••••••••••') {
@@ -161,7 +169,8 @@ class ZonaTech_Ajax_Handlers {
             update_option('zonatech_ultramsg_token', $token);
         }
         
-        // Save instance ID and admin WhatsApp
+        // Save API URL, instance ID and admin WhatsApp
+        update_option('zonatech_ultramsg_api_url', $api_url);
         update_option('zonatech_ultramsg_instance_id', $instance_id);
         update_option('zonatech_admin_whatsapp', $admin_whatsapp);
         

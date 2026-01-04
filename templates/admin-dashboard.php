@@ -3003,10 +3003,17 @@ $current_user = wp_get_current_user();
                 </div>
                 
                 <div id="ultramsg-form">
+                    <?php $ultramsg_api_url = get_option('zonatech_ultramsg_api_url', ''); ?>
+                    <div class="admin-form-group" style="margin-bottom: 15px;">
+                        <label><i class="fas fa-link"></i> API URL (from your UltraMsg dashboard)</label>
+                        <input type="text" id="ultramsg_api_url" value="<?php echo esc_attr($ultramsg_api_url); ?>" placeholder="e.g., https://api.ultramsg.com/instance12345/" style="font-family: monospace;">
+                        <small style="color: rgba(255,255,255,0.5); font-size: 11px; display: block; margin-top: 5px;">Copy the full API URL from your UltraMsg instance page (includes your Instance ID)</small>
+                    </div>
+                    
                     <div class="admin-form-group" style="margin-bottom: 15px;">
                         <label><i class="fas fa-hashtag"></i> Instance ID <?php echo $ultramsg_configured ? '<span style="color: #10b981;"><i class="fas fa-check-circle"></i> Set</span>' : '<span style="color: #ef4444;">Not Set</span>'; ?></label>
                         <input type="text" id="ultramsg_instance_id" value="<?php echo esc_attr($ultramsg_instance_id); ?>" placeholder="Your UltraMsg Instance ID (e.g., instance12345)" style="font-family: monospace;">
-                        <small style="color: rgba(255,255,255,0.5); font-size: 11px; display: block; margin-top: 5px;">Found on your UltraMsg instance page</small>
+                        <small style="color: rgba(255,255,255,0.5); font-size: 11px; display: block; margin-top: 5px;">Found on your UltraMsg instance page (or extracted from API URL)</small>
                     </div>
                     
                     <div class="admin-form-group" style="margin-bottom: 15px;">
@@ -3600,12 +3607,22 @@ $current_user = wp_get_current_user();
         
         // UltraMsg API Functions
         function saveUltraMsgSettings() {
+            var apiUrl = document.getElementById('ultramsg_api_url').value;
             var instanceId = document.getElementById('ultramsg_instance_id').value;
             var token = document.getElementById('ultramsg_token').value;
             var adminWhatsapp = document.getElementById('admin_whatsapp').value;
             
-            if (!instanceId) {
-                showUltraMsgResult('Please enter your Instance ID.', 'error');
+            // If API URL is provided, extract instance ID from it
+            if (apiUrl && !instanceId) {
+                var match = apiUrl.match(/ultramsg\.com\/([^\/]+)/);
+                if (match) {
+                    instanceId = match[1];
+                    document.getElementById('ultramsg_instance_id').value = instanceId;
+                }
+            }
+            
+            if (!instanceId && !apiUrl) {
+                showUltraMsgResult('Please enter your API URL or Instance ID.', 'error');
                 return;
             }
             
@@ -3627,6 +3644,7 @@ $current_user = wp_get_current_user();
                 data: {
                     action: 'zonatech_save_ultramsg_settings',
                     nonce: '<?php echo wp_create_nonce('zonatech_ultramsg_nonce'); ?>',
+                    api_url: apiUrl,
                     instance_id: instanceId,
                     token: token,
                     admin_whatsapp: adminWhatsapp

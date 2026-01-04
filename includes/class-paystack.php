@@ -596,6 +596,7 @@ class ZonaTech_Paystack {
         if (!$user) return;
         
         $to = $user->user_email;
+        $first_name = $user->first_name ?: $user->display_name;
         $service_names = array(
             'nin_slip_download' => 'NIN Slip Download',
             'nin_modification' => 'NIN Data Modification',
@@ -604,7 +605,7 @@ class ZonaTech_Paystack {
             'nin_validation' => 'NIN Validation'
         );
         $service_name = $service_names[$purchase->purchase_type] ?? 'NIN Service';
-        $subject_line = '✅ ' . $service_name . ' Request Received - ZonaTech NG';
+        $subject_line = '✅ Payment Successful - ' . $service_name . ' Request Confirmed | ZonaTech NG';
         
         $message = '
         <!DOCTYPE html>
@@ -613,62 +614,114 @@ class ZonaTech_Paystack {
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
-                body { font-family: Arial, sans-serif; background-color: #0f0f1a; color: #ffffff; margin: 0; padding: 20px; }
-                .container { max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 15px; overflow: hidden; }
-                .header { background: linear-gradient(135deg, #8b5cf6, #7c3aed); padding: 30px; text-align: center; }
-                .header h1 { margin: 0; font-size: 24px; }
-                .content { padding: 30px; }
-                .success-icon { font-size: 48px; text-align: center; margin-bottom: 20px; }
-                .info-box { background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 10px; padding: 20px; margin: 20px 0; }
-                .info-box h3 { color: #a78bfa; margin-top: 0; }
-                .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+                body { font-family: "Segoe UI", Arial, sans-serif; background-color: #0f0f1a; color: #ffffff; margin: 0; padding: 20px; line-height: 1.6; }
+                .container { max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 20px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+                .header { background: linear-gradient(135deg, #10b981, #059669); padding: 40px 30px; text-align: center; }
+                .header-icon { font-size: 60px; margin-bottom: 15px; }
+                .header h1 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
+                .header p { margin: 10px 0 0; font-size: 15px; opacity: 0.9; }
+                .content { padding: 35px 30px; }
+                .greeting { font-size: 18px; margin-bottom: 20px; color: #e0e0e0; }
+                .greeting strong { color: #ffffff; }
+                .success-message { background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.1)); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 12px; padding: 20px; margin: 25px 0; text-align: center; }
+                .success-message h2 { color: #10b981; margin: 0 0 10px; font-size: 18px; }
+                .success-message p { margin: 0; color: #a0e0c8; font-size: 14px; }
+                .info-box { background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 12px; padding: 25px; margin: 25px 0; }
+                .info-box h3 { color: #a78bfa; margin: 0 0 20px; font-size: 16px; border-bottom: 1px solid rgba(139, 92, 246, 0.2); padding-bottom: 12px; }
+                .info-row { display: table; width: 100%; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
                 .info-row:last-child { border-bottom: none; }
-                .info-label { color: rgba(255,255,255,0.6); }
-                .info-value { color: #ffffff; font-weight: 600; }
-                .footer { padding: 20px; text-align: center; color: rgba(255,255,255,0.6); font-size: 12px; }
-                .highlight { background: linear-gradient(135deg, #10b981, #059669); color: #ffffff; padding: 15px 20px; border-radius: 10px; text-align: center; margin: 20px 0; }
+                .info-label { display: table-cell; width: 40%; color: rgba(255,255,255,0.5); font-size: 14px; }
+                .info-value { display: table-cell; text-align: right; color: #ffffff; font-weight: 600; font-size: 14px; }
+                .processing-box { background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(124, 58, 237, 0.1)); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 12px; padding: 25px; margin: 25px 0; text-align: center; }
+                .processing-box .icon { font-size: 40px; margin-bottom: 15px; }
+                .processing-box h3 { color: #a78bfa; margin: 0 0 10px; font-size: 17px; }
+                .processing-box p { color: rgba(255,255,255,0.8); margin: 0; font-size: 14px; line-height: 1.7; }
+                .timeline { background: rgba(0,0,0,0.2); border-radius: 12px; padding: 20px; margin: 25px 0; }
+                .timeline h4 { color: #f59e0b; margin: 0 0 15px; font-size: 15px; }
+                .timeline-step { display: flex; align-items: flex-start; margin-bottom: 15px; }
+                .timeline-step:last-child { margin-bottom: 0; }
+                .timeline-step .step-icon { background: rgba(139, 92, 246, 0.2); color: #a78bfa; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; margin-right: 12px; flex-shrink: 0; }
+                .timeline-step .step-text { color: rgba(255,255,255,0.7); font-size: 13px; padding-top: 4px; }
+                .timeline-step.completed .step-icon { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+                .footer { padding: 25px 30px; text-align: center; background: rgba(0,0,0,0.2); border-top: 1px solid rgba(255,255,255,0.05); }
+                .footer p { color: rgba(255,255,255,0.5); font-size: 12px; margin: 5px 0; }
+                .footer a { color: #8b5cf6; text-decoration: none; }
+                .highlight-time { color: #f59e0b; font-weight: 700; font-size: 16px; }
             </style>
         </head>
         <body>
             <div class="container">
                 <div class="header">
-                    <h1>🎉 Request Received!</h1>
+                    <div class="header-icon">✅</div>
+                    <h1>Payment Successful!</h1>
+                    <p>Your ' . esc_html($service_name) . ' request has been received</p>
                 </div>
                 <div class="content">
-                    <div class="success-icon">✅</div>
-                    <h2 style="text-align: center; margin-bottom: 20px;">Your ' . esc_html($service_name) . ' Request is Being Processed</h2>
+                    <p class="greeting">Dear <strong>' . esc_html($first_name) . '</strong>,</p>
                     
-                    <div class="highlight">
-                        <strong>📧 You will receive your document via email shortly!</strong>
+                    <div class="success-message">
+                        <h2>🎉 Thank You for Your Payment!</h2>
+                        <p>We have successfully received your payment and your details have been submitted for processing.</p>
                     </div>
                     
                     <div class="info-box">
-                        <h3>Request Details</h3>
+                        <h3>📋 Transaction Details</h3>
                         <div class="info-row">
-                            <span class="info-label">Service:</span>
+                            <span class="info-label">Service</span>
                             <span class="info-value">' . esc_html($service_name) . '</span>
                         </div>
                         <div class="info-row">
-                            <span class="info-label">Reference:</span>
+                            <span class="info-label">Reference Number</span>
                             <span class="info-value">' . esc_html($purchase->reference) . '</span>
                         </div>
                         <div class="info-row">
-                            <span class="info-label">Amount Paid:</span>
-                            <span class="info-value">₦' . number_format($purchase->amount) . '</span>
+                            <span class="info-label">Amount Paid</span>
+                            <span class="info-value" style="color: #10b981;">₦' . number_format($purchase->amount) . '</span>
                         </div>
                         <div class="info-row">
-                            <span class="info-label">Date:</span>
-                            <span class="info-value">' . date('M j, Y g:i A') . '</span>
+                            <span class="info-label">Transaction Date</span>
+                            <span class="info-value">' . date('F j, Y') . '</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Transaction Time</span>
+                            <span class="info-value">' . date('g:i A') . ' (WAT)</span>
                         </div>
                     </div>
                     
-                    <p style="text-align: center; color: rgba(255,255,255,0.7);">
-                        Our team is working on your request. You will receive your document within <strong>24 hours</strong>.
+                    <div class="processing-box">
+                        <div class="icon">⏳</div>
+                        <h3>Your Request is Currently Being Processed</h3>
+                        <p>Our team has received your request and is working on it. You will receive your document via email within the next <span class="highlight-time">24 hours</span>.</p>
+                    </div>
+                    
+                    <div class="timeline">
+                        <h4>📍 What Happens Next?</h4>
+                        <div class="timeline-step completed">
+                            <div class="step-icon">✓</div>
+                            <div class="step-text"><strong>Payment Received</strong> - Your payment has been confirmed</div>
+                        </div>
+                        <div class="timeline-step completed">
+                            <div class="step-icon">✓</div>
+                            <div class="step-text"><strong>Details Submitted</strong> - Your information is now in our system</div>
+                        </div>
+                        <div class="timeline-step">
+                            <div class="step-icon">3</div>
+                            <div class="step-text"><strong>Processing</strong> - Our team is working on your request</div>
+                        </div>
+                        <div class="timeline-step">
+                            <div class="step-icon">4</div>
+                            <div class="step-text"><strong>Delivery</strong> - You\'ll receive your document via email</div>
+                        </div>
+                    </div>
+                    
+                    <p style="text-align: center; color: rgba(255,255,255,0.6); font-size: 13px; margin-top: 25px;">
+                        Please keep this email for your records. If you have any questions about your request, please contact our support team with your reference number.
                     </p>
                 </div>
                 <div class="footer">
-                    <p>Thank you for choosing ZonaTech NG!</p>
-                    <p>If you have any questions, contact us at ' . esc_html(ZONATECH_SUPPORT_EMAIL) . '</p>
+                    <p style="font-size: 14px; color: #ffffff; margin-bottom: 10px;">Thank you for choosing <strong>ZonaTech NG</strong>!</p>
+                    <p>For support, contact us at <a href="mailto:' . esc_attr(ZONATECH_SUPPORT_EMAIL) . '">' . esc_html(ZONATECH_SUPPORT_EMAIL) . '</a></p>
+                    <p style="margin-top: 15px; font-size: 11px;">© ' . date('Y') . ' ZonaTech NG. All rights reserved.</p>
                 </div>
             </div>
         </body>

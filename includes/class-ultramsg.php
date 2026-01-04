@@ -15,7 +15,8 @@ class ZonaTech_UltraMsg {
     private static $instance = null;
     private $instance_id;
     private $token;
-    private $api_url = 'https://api.ultramsg.com/';
+    private $api_url;
+    private $base_api_url = 'https://api.ultramsg.com/';
     
     public static function get_instance() {
         if (null === self::$instance) {
@@ -27,13 +28,24 @@ class ZonaTech_UltraMsg {
     private function __construct() {
         $this->instance_id = get_option('zonatech_ultramsg_instance_id', '');
         $this->token = get_option('zonatech_ultramsg_token', '');
+        $custom_api_url = get_option('zonatech_ultramsg_api_url', '');
+        
+        // Use custom API URL if provided, otherwise build from instance ID
+        if (!empty($custom_api_url)) {
+            // Ensure URL ends with /
+            $this->api_url = rtrim($custom_api_url, '/') . '/';
+        } elseif (!empty($this->instance_id)) {
+            $this->api_url = $this->base_api_url . $this->instance_id . '/';
+        } else {
+            $this->api_url = $this->base_api_url;
+        }
     }
     
     /**
      * Check if UltraMsg is configured
      */
     public function is_configured() {
-        return !empty($this->instance_id) && !empty($this->token);
+        return (!empty($this->instance_id) || !empty($this->api_url)) && !empty($this->token);
     }
     
     /**
@@ -47,14 +59,15 @@ class ZonaTech_UltraMsg {
         if (!$this->is_configured()) {
             return array(
                 'success' => false,
-                'message' => 'UltraMsg is not configured. Please add your Instance ID and Token in Settings.'
+                'message' => 'UltraMsg is not configured. Please add your API URL/Instance ID and Token in Settings.'
             );
         }
         
         // Format phone number - ensure it has country code
         $phone_number = $this->format_phone_number($phone_number);
         
-        $url = $this->api_url . $this->instance_id . '/messages/chat';
+        // API URL already includes instance ID, just append the endpoint
+        $url = $this->api_url . 'messages/chat';
         
         $body = array(
             'token' => $this->token,
@@ -82,7 +95,11 @@ class ZonaTech_UltraMsg {
         
         $response_body = json_decode(wp_remote_retrieve_body($response), true);
         
-        if (isset($response_body['sent']) && $response_body['sent'] === 'true') {
+        // Handle different success response formats
+        $is_sent = (isset($response_body['sent']) && ($response_body['sent'] === 'true' || $response_body['sent'] === true)) ||
+                   (isset($response_body['message']) && $response_body['message'] === 'ok');
+        
+        if ($is_sent) {
             return array(
                 'success' => true,
                 'message' => 'WhatsApp message sent successfully',
@@ -117,7 +134,8 @@ class ZonaTech_UltraMsg {
         
         $phone_number = $this->format_phone_number($phone_number);
         
-        $url = $this->api_url . $this->instance_id . '/messages/image';
+        // API URL already includes instance ID
+        $url = $this->api_url . 'messages/image';
         
         $body = array(
             'token' => $this->token,
@@ -143,7 +161,10 @@ class ZonaTech_UltraMsg {
         
         $response_body = json_decode(wp_remote_retrieve_body($response), true);
         
-        if (isset($response_body['sent']) && $response_body['sent'] === 'true') {
+        $is_sent = (isset($response_body['sent']) && ($response_body['sent'] === 'true' || $response_body['sent'] === true)) ||
+                   (isset($response_body['message']) && $response_body['message'] === 'ok');
+        
+        if ($is_sent) {
             return array(
                 'success' => true,
                 'message' => 'WhatsApp image sent successfully',
@@ -177,7 +198,8 @@ class ZonaTech_UltraMsg {
         
         $phone_number = $this->format_phone_number($phone_number);
         
-        $url = $this->api_url . $this->instance_id . '/messages/document';
+        // API URL already includes instance ID
+        $url = $this->api_url . 'messages/document';
         
         $body = array(
             'token' => $this->token,
@@ -204,7 +226,10 @@ class ZonaTech_UltraMsg {
         
         $response_body = json_decode(wp_remote_retrieve_body($response), true);
         
-        if (isset($response_body['sent']) && $response_body['sent'] === 'true') {
+        $is_sent = (isset($response_body['sent']) && ($response_body['sent'] === 'true' || $response_body['sent'] === true)) ||
+                   (isset($response_body['message']) && $response_body['message'] === 'ok');
+        
+        if ($is_sent) {
             return array(
                 'success' => true,
                 'message' => 'WhatsApp document sent successfully',
@@ -232,7 +257,8 @@ class ZonaTech_UltraMsg {
             );
         }
         
-        $url = $this->api_url . $this->instance_id . '/instance/status?token=' . $this->token;
+        // API URL already includes instance ID
+        $url = $this->api_url . 'instance/status?token=' . $this->token;
         
         $response = wp_remote_get($url, array('timeout' => 15));
         
