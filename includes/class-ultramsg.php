@@ -290,11 +290,19 @@ class ZonaTech_UltraMsg {
         }
         
         $data = $status['data'];
+        $account_status = null;
+        
+        // Log the response for debugging
+        error_log('UltraMsg Status Response: ' . wp_json_encode($data));
         
         // Handle different API response formats
         // Check for direct status.accountStatus structure
-        if (isset($data['status']) && isset($data['status']['accountStatus'])) {
+        if (isset($data['status']) && is_array($data['status']) && isset($data['status']['accountStatus'])) {
             $account_status = $data['status']['accountStatus'];
+        }
+        // Check for status.status structure (nested status object)
+        elseif (isset($data['status']) && is_array($data['status']) && isset($data['status']['status'])) {
+            $account_status = $data['status']['status'];
         }
         // Check for status directly as a string
         elseif (isset($data['status']) && is_string($data['status'])) {
@@ -308,10 +316,9 @@ class ZonaTech_UltraMsg {
         elseif (isset($data['connected'])) {
             $account_status = $data['connected'] ? 'authenticated' : 'disconnected';
         }
-        else {
-            // Log the full response for debugging
-            error_log('UltraMsg Status Response: ' . wp_json_encode($data));
-            
+        
+        // If we still don't have an account status, try harder to find it
+        if (empty($account_status)) {
             // If we have any data, try to extract useful info
             if (!empty($data)) {
                 $status_text = is_array($data) ? wp_json_encode($data) : strval($data);
@@ -323,18 +330,28 @@ class ZonaTech_UltraMsg {
             
             return array(
                 'success' => false,
-                'message' => 'Could not determine connection status. Please verify your Instance ID and Token are correct.'
+                'message' => 'Could not determine connection status. Please verify your API URL and Token are correct.'
             );
         }
         
         // Ensure account_status is a string
         if (is_array($account_status)) {
-            $account_status = isset($account_status['value']) ? $account_status['value'] : wp_json_encode($account_status);
+            // Try to get status from nested object
+            if (isset($account_status['status'])) {
+                $account_status = $account_status['status'];
+            } elseif (isset($account_status['value'])) {
+                $account_status = $account_status['value'];
+            } else {
+                $account_status = wp_json_encode($account_status);
+            }
         }
+        
+        // Normalize status values
+        $account_status = strtolower(trim($account_status));
         
         if ($account_status === 'authenticated' || $account_status === 'connected') {
             $phone = '';
-            if (isset($data['status']['displayedPhonenumber'])) {
+            if (isset($data['status']) && is_array($data['status']) && isset($data['status']['displayedPhonenumber'])) {
                 $phone = $data['status']['displayedPhonenumber'];
             } elseif (isset($data['displayedPhonenumber'])) {
                 $phone = $data['displayedPhonenumber'];
