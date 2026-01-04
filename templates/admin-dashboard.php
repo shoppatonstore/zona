@@ -2965,6 +2965,75 @@ $current_user = wp_get_current_user();
                 </div>
             </div>
             
+            <!-- UltraMsg WhatsApp API Section -->
+            <div style="padding: 20px; background: rgba(37, 211, 102, 0.1); border: 1px solid rgba(37, 211, 102, 0.3); border-radius: 12px; margin-bottom: 20px;">
+                <?php
+                $ultramsg_instance_id = get_option('zonatech_ultramsg_instance_id', '');
+                $ultramsg_token = get_option('zonatech_ultramsg_token', '');
+                $admin_whatsapp = get_option('zonatech_admin_whatsapp', '');
+                $ultramsg_configured = !empty($ultramsg_instance_id) && !empty($ultramsg_token);
+                ?>
+                <h3 style="font-size: 16px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+                    <span>
+                        <i class="fab fa-whatsapp" style="color: #25d366;"></i> UltraMsg WhatsApp API (Auto-Notifications)
+                    </span>
+                    <?php if ($ultramsg_configured): ?>
+                        <span style="font-size: 11px; background: rgba(34, 197, 94, 0.2); color: #22c55e; padding: 4px 12px; border-radius: 20px;">
+                            <i class="fas fa-check-circle"></i> Configured
+                        </span>
+                    <?php endif; ?>
+                </h3>
+                
+                <div style="background: rgba(37, 211, 102, 0.08); padding: 12px; border-radius: 8px; margin-bottom: 15px; font-size: 12px; color: rgba(255,255,255,0.8);">
+                    <i class="fas fa-info-circle" style="color: #25d366;"></i>
+                    UltraMsg enables <strong>automatic WhatsApp notifications</strong> to your phone for NIN service payments. Free tier includes 500 messages/month. 
+                    <a href="https://ultramsg.com" target="_blank" style="color: #25d366; font-weight: 600;">Get started at ultramsg.com</a>
+                </div>
+                
+                <!-- Setup Guide -->
+                <div style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; margin-bottom: 15px; font-size: 12px;">
+                    <h4 style="color: #25d366; margin-bottom: 10px; font-size: 13px;"><i class="fas fa-book"></i> Setup Guide</h4>
+                    <ol style="padding-left: 20px; margin: 0; color: rgba(255,255,255,0.7); line-height: 1.8;">
+                        <li>Go to <a href="https://ultramsg.com" target="_blank" style="color: #25d366;">ultramsg.com</a> and create a free account</li>
+                        <li>Click "Create New Instance" in your dashboard</li>
+                        <li>Scan the QR code with your WhatsApp to link your phone</li>
+                        <li>Copy your <strong>Instance ID</strong> and <strong>Token</strong> from the instance page</li>
+                        <li>Paste them below and save</li>
+                    </ol>
+                </div>
+                
+                <div id="ultramsg-form">
+                    <div class="admin-form-group" style="margin-bottom: 15px;">
+                        <label><i class="fas fa-hashtag"></i> Instance ID <?php echo $ultramsg_configured ? '<span style="color: #10b981;"><i class="fas fa-check-circle"></i> Set</span>' : '<span style="color: #ef4444;">Not Set</span>'; ?></label>
+                        <input type="text" id="ultramsg_instance_id" value="<?php echo esc_attr($ultramsg_instance_id); ?>" placeholder="Your UltraMsg Instance ID (e.g., instance12345)" style="font-family: monospace;">
+                        <small style="color: rgba(255,255,255,0.5); font-size: 11px; display: block; margin-top: 5px;">Found on your UltraMsg instance page</small>
+                    </div>
+                    
+                    <div class="admin-form-group" style="margin-bottom: 15px;">
+                        <label><i class="fas fa-key"></i> Token <?php echo $ultramsg_configured ? '<span style="color: #10b981;"><i class="fas fa-check-circle"></i> Set</span>' : '<span style="color: #ef4444;">Not Set</span>'; ?></label>
+                        <input type="password" id="ultramsg_token" value="<?php echo $ultramsg_configured ? '••••••••••••••••' : ''; ?>" placeholder="Your UltraMsg Token" style="font-family: monospace;" <?php echo $ultramsg_configured ? 'onfocus="if(this.value===\'••••••••••••••••\')this.value=\'\';"' : ''; ?>>
+                        <small style="color: rgba(255,255,255,0.5); font-size: 11px; display: block; margin-top: 5px;">Your API token from UltraMsg</small>
+                    </div>
+                    
+                    <div class="admin-form-group" style="margin-bottom: 15px;">
+                        <label><i class="fas fa-phone"></i> Admin WhatsApp Number</label>
+                        <input type="text" id="admin_whatsapp" value="<?php echo esc_attr($admin_whatsapp); ?>" placeholder="e.g., 08012345678">
+                        <small style="color: rgba(255,255,255,0.5); font-size: 11px; display: block; margin-top: 5px;">Your WhatsApp number to receive notifications (Nigerian format)</small>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 15px;">
+                        <button type="button" onclick="saveUltraMsgSettings()" class="admin-form-submit" style="background: linear-gradient(135deg, #25d366, #128c7e); flex: 1;">
+                            <i class="fas fa-save"></i> Save UltraMsg Settings
+                        </button>
+                        <button type="button" onclick="testUltraMsgConnection()" class="admin-form-submit" style="background: linear-gradient(135deg, #10b981, #059669); flex: 1;">
+                            <i class="fas fa-paper-plane"></i> Test Connection
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="ultramsg-result" style="margin-top: 15px; display: none;"></div>
+            </div>
+            
             <!-- Pricing Info -->
             <div style="padding: 20px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;">
                 <h3 style="font-size: 16px; margin-bottom: 15px;"><i class="fas fa-sliders-h"></i> Pricing Info</h3>
@@ -3527,6 +3596,87 @@ $current_user = wp_get_current_user();
                     btn.disabled = false;
                 }
             });
+        }
+        
+        // UltraMsg API Functions
+        function saveUltraMsgSettings() {
+            var instanceId = document.getElementById('ultramsg_instance_id').value;
+            var token = document.getElementById('ultramsg_token').value;
+            var adminWhatsapp = document.getElementById('admin_whatsapp').value;
+            
+            if (!instanceId) {
+                showUltraMsgResult('Please enter your Instance ID.', 'error');
+                return;
+            }
+            
+            if (!token || token === '••••••••••••••••') {
+                showUltraMsgResult('Please enter your Token.', 'error');
+                return;
+            }
+            
+            if (!adminWhatsapp) {
+                showUltraMsgResult('Please enter your Admin WhatsApp number.', 'error');
+                return;
+            }
+            
+            showUltraMsgResult('<i class="fas fa-spinner fa-spin"></i> Saving settings...', 'info');
+            
+            jQuery.ajax({
+                url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                type: 'POST',
+                data: {
+                    action: 'zonatech_save_ultramsg_settings',
+                    nonce: '<?php echo wp_create_nonce('zonatech_ultramsg_nonce'); ?>',
+                    instance_id: instanceId,
+                    token: token,
+                    admin_whatsapp: adminWhatsapp
+                },
+                success: function(response) {
+                    if (response.success) {
+                        showUltraMsgResult('<i class="fas fa-check-circle"></i> ' + response.data.message, 'success');
+                        document.getElementById('ultramsg_token').value = '••••••••••••••••';
+                    } else {
+                        showUltraMsgResult('<i class="fas fa-exclamation-circle"></i> ' + (response.data.message || 'Failed to save settings.'), 'error');
+                    }
+                },
+                error: function() {
+                    showUltraMsgResult('<i class="fas fa-exclamation-circle"></i> Network error. Please try again.', 'error');
+                }
+            });
+        }
+        
+        function testUltraMsgConnection() {
+            showUltraMsgResult('<i class="fas fa-spinner fa-spin"></i> Testing connection and sending test message...', 'info');
+            
+            jQuery.ajax({
+                url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                type: 'POST',
+                data: {
+                    action: 'zonatech_test_ultramsg',
+                    nonce: '<?php echo wp_create_nonce('zonatech_ultramsg_nonce'); ?>'
+                },
+                success: function(response) {
+                    if (response.success) {
+                        showUltraMsgResult('<i class="fas fa-check-circle"></i> ' + response.data.message, 'success');
+                    } else {
+                        showUltraMsgResult('<i class="fas fa-exclamation-circle"></i> ' + (response.data.message || 'Connection failed.'), 'error');
+                    }
+                },
+                error: function() {
+                    showUltraMsgResult('<i class="fas fa-exclamation-circle"></i> Network error. Please try again.', 'error');
+                }
+            });
+        }
+        
+        function showUltraMsgResult(message, type) {
+            var resultDiv = document.getElementById('ultramsg-result');
+            var bgColor = type === 'success' ? 'rgba(34, 197, 94, 0.2)' : 
+                         type === 'error' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(37, 211, 102, 0.2)';
+            var textColor = type === 'success' ? '#22c55e' : 
+                           type === 'error' ? '#ef4444' : '#25d366';
+            
+            resultDiv.innerHTML = '<div style="padding: 12px; background: ' + bgColor + '; border-radius: 8px; color: ' + textColor + ';">' + message + '</div>';
+            resultDiv.style.display = 'block';
         }
     </script>
 </body>

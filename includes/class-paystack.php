@@ -468,64 +468,6 @@ class ZonaTech_Paystack {
         );
         $service_name = $service_names[$purchase->purchase_type] ?? 'NIN Service';
         
-        // Build notification message
-        $message_parts = array();
-        $message_parts[] = "🔔 NEW " . strtoupper($service_name) . " REQUEST";
-        $message_parts[] = "";
-        $message_parts[] = "📋 *Service Details:*";
-        $message_parts[] = "• Service: " . $service_name;
-        $message_parts[] = "• Reference: " . $purchase->reference;
-        $message_parts[] = "• Amount Paid: ₦" . number_format($purchase->amount);
-        $message_parts[] = "";
-        $message_parts[] = "👤 *Customer Details:*";
-        $message_parts[] = "• Name: " . $user->display_name;
-        $message_parts[] = "• Email: " . $user->user_email;
-        
-        // Add NIN-specific details based on service type
-        if ($purchase->purchase_type === 'nin_verification') {
-            $verification_method = $meta_data['verification_method'] ?? 'nin_number';
-            $slip_type = $meta_data['slip_type'] ?? 'regular';
-            $message_parts[] = "• Verification Method: " . ucwords(str_replace('_', ' ', $verification_method));
-            $message_parts[] = "• Slip Type: " . ucfirst($slip_type);
-            
-            if ($verification_method === 'nin_number' && !empty($meta_data['nin'])) {
-                $message_parts[] = "• NIN: " . $meta_data['nin'];
-            } elseif ($verification_method === 'phone_number' && !empty($meta_data['phone_nin'])) {
-                $message_parts[] = "• Phone: " . $meta_data['phone_nin'];
-            } elseif ($verification_method === 'tracking_id' && !empty($meta_data['tracking_id'])) {
-                $message_parts[] = "• Tracking ID: " . $meta_data['tracking_id'];
-            } elseif ($verification_method === 'demographic') {
-                $message_parts[] = "• First Name: " . ($meta_data['first_name'] ?? '');
-                $message_parts[] = "• Last Name: " . ($meta_data['last_name'] ?? '');
-                $message_parts[] = "• DOB: " . ($meta_data['date_of_birth'] ?? '');
-                $message_parts[] = "• Gender: " . ucfirst($meta_data['gender'] ?? '');
-            }
-        } elseif ($purchase->purchase_type === 'nin_validation') {
-            $validation_type = $meta_data['validation_type'] ?? '';
-            $message_parts[] = "• Validation Type: " . ucwords(str_replace('_', ' ', $validation_type));
-            $message_parts[] = "• NIN: " . ($meta_data['nin'] ?? '');
-        }
-        
-        $message_parts[] = "";
-        $message_parts[] = "📅 Date: " . date('M j, Y g:i A');
-        $message_parts[] = "";
-        $message_parts[] = "⚡ Please process this request ASAP.";
-        
-        $whatsapp_message = implode("\n", $message_parts);
-        
-        // Generate WhatsApp URL - send to admin's WhatsApp
-        // Get admin phone from settings or fallback to defined constant
-        $admin_phone = get_option('zonatech_admin_whatsapp', '');
-        if (empty($admin_phone) && defined('ZONATECH_WHATSAPP_NUMBER')) {
-            $admin_phone = ZONATECH_WHATSAPP_NUMBER;
-        }
-        
-        if (!empty($admin_phone)) {
-            // Format phone for WhatsApp (remove leading 0 and add country code)
-            $formatted_phone = '234' . substr($admin_phone, 1);
-            $whatsapp_url = 'https://wa.me/' . $formatted_phone . '?text=' . urlencode($whatsapp_message);
-        }
-        
         // Send email notification to admin
         $admin_email = get_option('zonatech_admin_email', '');
         if (empty($admin_email) && defined('ZONATECH_SUPPORT_EMAIL')) {
@@ -537,9 +479,13 @@ class ZonaTech_Paystack {
         
         $this->send_admin_email_notification($admin_email, $purchase, $meta_data, $user, $service_name);
         
-        // Send a WhatsApp notification via Click-to-Chat API or webhook if configured
-        // For automatic WhatsApp, a third-party API would be needed
-        // For now, we'll include the WhatsApp link in the admin email
+        // Send WhatsApp notification via UltraMsg if configured
+        if (class_exists('ZonaTech_UltraMsg')) {
+            $ultramsg = ZonaTech_UltraMsg::get_instance();
+            if ($ultramsg->is_configured()) {
+                $ultramsg->send_nin_notification_to_admin($purchase, $meta_data, $user, $service_name);
+            }
+        }
     }
     
     /**

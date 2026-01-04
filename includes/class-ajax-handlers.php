@@ -23,6 +23,10 @@ class ZonaTech_Ajax_Handlers {
         add_action('wp_ajax_zonatech_get_dashboard_data', array($this, 'get_dashboard_data'));
         add_action('wp_ajax_zonatech_get_payment_history', array($this, 'get_payment_history'));
         add_action('wp_ajax_zonatech_get_downloaded_documents', array($this, 'get_downloaded_documents'));
+        
+        // UltraMsg WhatsApp API handlers
+        add_action('wp_ajax_zonatech_save_ultramsg_settings', array($this, 'save_ultramsg_settings'));
+        add_action('wp_ajax_zonatech_test_ultramsg', array($this, 'test_ultramsg'));
     }
     
     public function get_dashboard_data() {
@@ -123,5 +127,92 @@ class ZonaTech_Ajax_Handlers {
         );
         
         return $icons[$type] ?? 'fas fa-file';
+    }
+    
+    /**
+     * Save UltraMsg WhatsApp API settings
+     */
+    public function save_ultramsg_settings() {
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'zonatech_ultramsg_nonce')) {
+            wp_send_json_error(array('message' => 'Security check failed.'));
+        }
+        
+        // Check if admin
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'Unauthorized access.'));
+        }
+        
+        $instance_id = sanitize_text_field($_POST['instance_id'] ?? '');
+        $token = sanitize_text_field($_POST['token'] ?? '');
+        $admin_whatsapp = sanitize_text_field($_POST['admin_whatsapp'] ?? '');
+        
+        if (empty($instance_id)) {
+            wp_send_json_error(array('message' => 'Instance ID is required.'));
+        }
+        
+        if (empty($token) || $token === '••••••••••••••••') {
+            // If token is masked, don't update it (keep existing)
+            if ($token !== '••••••••••••••••') {
+                wp_send_json_error(array('message' => 'Token is required.'));
+            }
+        } else {
+            // Save the token
+            update_option('zonatech_ultramsg_token', $token);
+        }
+        
+        // Save instance ID and admin WhatsApp
+        update_option('zonatech_ultramsg_instance_id', $instance_id);
+        update_option('zonatech_admin_whatsapp', $admin_whatsapp);
+        
+        wp_send_json_success(array('message' => 'UltraMsg settings saved successfully!'));
+    }
+    
+    /**
+     * Test UltraMsg WhatsApp API connection
+     */
+    public function test_ultramsg() {
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'zonatech_ultramsg_nonce')) {
+            wp_send_json_error(array('message' => 'Security check failed.'));
+        }
+        
+        // Check if admin
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'Unauthorized access.'));
+        }
+        
+        // Check if UltraMsg class exists
+        if (!class_exists('ZonaTech_UltraMsg')) {
+            wp_send_json_error(array('message' => 'UltraMsg class not found. Please ensure the plugin is properly installed.'));
+        }
+        
+        $ultramsg = ZonaTech_UltraMsg::get_instance();
+        
+        if (!$ultramsg->is_configured()) {
+            wp_send_json_error(array('message' => 'UltraMsg is not configured. Please save your Instance ID and Token first.'));
+        }
+        
+        // Test the connection
+        $test_result = $ultramsg->test_connection();
+        
+        if ($test_result['success']) {
+            // Send a test message to admin
+            $admin_phone = get_option('zonatech_admin_whatsapp', '');
+            if (!empty($admin_phone)) {
+                $test_message = "🔔 *ZonaTech NG Test Message*\n\n✅ Your UltraMsg WhatsApp integration is working correctly!\n\n📅 " . date('M j, Y g:i A');
+                $send_result = $ultramsg->send_message($admin_phone, $test_message);
+                
+                if ($send_result['success']) {
+                    wp_send_json_success(array('message' => 'Connection successful! Test message sent to your WhatsApp.'));
+                } else {
+                    wp_send_json_error(array('message' => 'Connected but failed to send test message: ' . $send_result['message']));
+                }
+            } else {
+                wp_send_json_success(array('message' => 'Connection successful! Phone: ' . ($test_result['phone'] ?? 'Unknown') . '. Add your Admin WhatsApp number to receive notifications.'));
+            }
+        } else {
+            wp_send_json_error(array('message' => $test_result['message']));
+        }
     }
 }
