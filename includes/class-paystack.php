@@ -67,7 +67,22 @@ class ZonaTech_Paystack {
             'nin_slip_download' => defined('ZONATECH_NIN_SLIP_DOWNLOAD_PRICE') ? ZONATECH_NIN_SLIP_DOWNLOAD_PRICE : 1300,
             'nin_modification' => defined('ZONATECH_NIN_MODIFICATION_PRICE') ? ZONATECH_NIN_MODIFICATION_PRICE : 3800,
             'nin_dob_correction' => defined('ZONATECH_NIN_DOB_CORRECTION_PRICE') ? ZONATECH_NIN_DOB_CORRECTION_PRICE : 5300,
+            // NIN Verification & Validation Services - prices set dynamically below
+            'nin_verification' => 280, // Default - will be updated based on slip type
+            'nin_validation' => 2300,
         );
+        
+        // Handle dynamic NIN verification pricing based on slip type
+        if ($payment_type === 'nin_verification' && isset($meta_data['slip_type'])) {
+            $slip_prices = array(
+                'regular' => 280,
+                'standard' => 280,
+                'premium' => 300,
+                'vnin' => 300
+            );
+            $slip_type = strtolower($meta_data['slip_type']);
+            $valid_amounts['nin_verification'] = isset($slip_prices[$slip_type]) ? $slip_prices[$slip_type] : 280;
+        }
         
         // Handle dynamic scratch card pricing
         if ($payment_type === 'scratch_card' && isset($meta_data['card_type'])) {
@@ -416,7 +431,218 @@ class ZonaTech_Paystack {
                 // Send confirmation email to user
                 $this->send_nin_service_confirmation_email($purchase, $meta_data);
                 break;
+            
+            case 'nin_verification':
+            case 'nin_validation':
+                // Create NIN verification/validation request for admin fulfillment
+                $table_nin = $wpdb->prefix . 'zonatech_nin_requests';
+                $wpdb->insert($table_nin, array(
+                    'user_id' => $purchase->user_id,
+                    'nin_number' => $meta_data['nin'] ?? $meta_data['phone_nin'] ?? '',
+                    'service_type' => $purchase->purchase_type,
+                    'form_data' => wp_json_encode($meta_data),
+                    'status' => 'paid',
+                    'purchase_id' => $purchase->id
+                ));
+                
+                // Send confirmation email to user
+                $this->send_nin_service_confirmation_email($purchase, $meta_data);
+                
+                // Send WhatsApp and Email notification to admin
+                $this->send_admin_nin_notification($purchase, $meta_data);
+                break;
         }
+    }
+    
+    /**
+     * Send WhatsApp and Email notification to admin for NIN service requests
+     */
+    private function send_admin_nin_notification($purchase, $meta_data) {
+        $user = get_userdata($purchase->user_id);
+        if (!$user) return;
+        
+        // Determine service type display name
+        $service_names = array(
+            'nin_verification' => 'NIN Verification',
+            'nin_validation' => 'NIN Validation',
+        );
+        $service_name = $service_names[$purchase->purchase_type] ?? 'NIN Service';
+        
+        // Build notification message
+        $message_parts = array();
+        $message_parts[] = "🔔 NEW " . strtoupper($service_name) . " REQUEST";
+        $message_parts[] = "";
+        $message_parts[] = "📋 *Service Details:*";
+        $message_parts[] = "• Service: " . $service_name;
+        $message_parts[] = "• Reference: " . $purchase->reference;
+        $message_parts[] = "• Amount Paid: ₦" . number_format($purchase->amount);
+        $message_parts[] = "";
+        $message_parts[] = "👤 *Customer Details:*";
+        $message_parts[] = "• Name: " . $user->display_name;
+        $message_parts[] = "• Email: " . $user->user_email;
+        
+        // Add NIN-specific details based on service type
+        if ($purchase->purchase_type === 'nin_verification') {
+            $verification_method = $meta_data['verification_method'] ?? 'nin_number';
+            $slip_type = $meta_data['slip_type'] ?? 'regular';
+            $message_parts[] = "• Verification Method: " . ucwords(str_replace('_', ' ', $verification_method));
+            $message_parts[] = "• Slip Type: " . ucfirst($slip_type);
+            
+            if ($verification_method === 'nin_number' && !empty($meta_data['nin'])) {
+                $message_parts[] = "• NIN: " . $meta_data['nin'];
+            } elseif ($verification_method === 'phone_number' && !empty($meta_data['phone_nin'])) {
+                $message_parts[] = "• Phone: " . $meta_data['phone_nin'];
+            } elseif ($verification_method === 'tracking_id' && !empty($meta_data['tracking_id'])) {
+                $message_parts[] = "• Tracking ID: " . $meta_data['tracking_id'];
+            } elseif ($verification_method === 'demographic') {
+                $message_parts[] = "• First Name: " . ($meta_data['first_name'] ?? '');
+                $message_parts[] = "• Last Name: " . ($meta_data['last_name'] ?? '');
+                $message_parts[] = "• DOB: " . ($meta_data['date_of_birth'] ?? '');
+                $message_parts[] = "• Gender: " . ucfirst($meta_data['gender'] ?? '');
+            }
+        } elseif ($purchase->purchase_type === 'nin_validation') {
+            $validation_type = $meta_data['validation_type'] ?? '';
+            $message_parts[] = "• Validation Type: " . ucwords(str_replace('_', ' ', $validation_type));
+            $message_parts[] = "• NIN: " . ($meta_data['nin'] ?? '');
+        }
+        
+        $message_parts[] = "";
+        $message_parts[] = "📅 Date: " . date('M j, Y g:i A');
+        $message_parts[] = "";
+        $message_parts[] = "⚡ Please process this request ASAP.";
+        
+        $whatsapp_message = implode("\n", $message_parts);
+        
+        // Generate WhatsApp URL - send to admin's WhatsApp
+        // Get admin phone from settings or fallback to defined constant
+        $admin_phone = get_option('zonatech_admin_whatsapp', '');
+        if (empty($admin_phone) && defined('ZONATECH_WHATSAPP_NUMBER')) {
+            $admin_phone = ZONATECH_WHATSAPP_NUMBER;
+        }
+        
+        if (!empty($admin_phone)) {
+            // Format phone for WhatsApp (remove leading 0 and add country code)
+            $formatted_phone = '234' . substr($admin_phone, 1);
+            $whatsapp_url = 'https://wa.me/' . $formatted_phone . '?text=' . urlencode($whatsapp_message);
+        }
+        
+        // Send email notification to admin
+        $admin_email = get_option('zonatech_admin_email', '');
+        if (empty($admin_email) && defined('ZONATECH_SUPPORT_EMAIL')) {
+            $admin_email = ZONATECH_SUPPORT_EMAIL;
+        }
+        if (empty($admin_email)) {
+            $admin_email = get_option('admin_email');
+        }
+        
+        $this->send_admin_email_notification($admin_email, $purchase, $meta_data, $user, $service_name);
+        
+        // Send a WhatsApp notification via Click-to-Chat API or webhook if configured
+        // For automatic WhatsApp, a third-party API would be needed
+        // For now, we'll include the WhatsApp link in the admin email
+    }
+    
+    /**
+     * Send email notification to admin for NIN service requests
+     */
+    private function send_admin_email_notification($admin_email, $purchase, $meta_data, $user, $service_name) {
+        $subject_line = '🔔 New ' . $service_name . ' Request - ' . $purchase->reference;
+        
+        // Build HTML details based on service type
+        $details_html = '';
+        if ($purchase->purchase_type === 'nin_verification') {
+            $verification_method = $meta_data['verification_method'] ?? 'nin_number';
+            $slip_type = $meta_data['slip_type'] ?? 'regular';
+            $details_html .= '<p><strong>Verification Method:</strong> ' . esc_html(ucwords(str_replace('_', ' ', $verification_method))) . '</p>';
+            $details_html .= '<p><strong>Slip Type:</strong> ' . esc_html(ucfirst($slip_type)) . '</p>';
+            
+            if ($verification_method === 'nin_number' && !empty($meta_data['nin'])) {
+                $details_html .= '<p><strong>NIN:</strong> ' . esc_html($meta_data['nin']) . '</p>';
+            } elseif ($verification_method === 'phone_number' && !empty($meta_data['phone_nin'])) {
+                $details_html .= '<p><strong>Phone Number:</strong> ' . esc_html($meta_data['phone_nin']) . '</p>';
+            } elseif ($verification_method === 'tracking_id' && !empty($meta_data['tracking_id'])) {
+                $details_html .= '<p><strong>Tracking ID:</strong> ' . esc_html($meta_data['tracking_id']) . '</p>';
+            } elseif ($verification_method === 'demographic') {
+                $details_html .= '<p><strong>First Name:</strong> ' . esc_html($meta_data['first_name'] ?? '') . '</p>';
+                $details_html .= '<p><strong>Last Name:</strong> ' . esc_html($meta_data['last_name'] ?? '') . '</p>';
+                $details_html .= '<p><strong>Date of Birth:</strong> ' . esc_html($meta_data['date_of_birth'] ?? '') . '</p>';
+                $details_html .= '<p><strong>Gender:</strong> ' . esc_html(ucfirst($meta_data['gender'] ?? '')) . '</p>';
+            }
+        } elseif ($purchase->purchase_type === 'nin_validation') {
+            $validation_type = $meta_data['validation_type'] ?? '';
+            $details_html .= '<p><strong>Validation Type:</strong> ' . esc_html(ucwords(str_replace('_', ' ', $validation_type))) . '</p>';
+            $details_html .= '<p><strong>NIN:</strong> ' . esc_html($meta_data['nin'] ?? '') . '</p>';
+        }
+        
+        $message = '
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body { font-family: Arial, sans-serif; background: #0f0f23; color: #ffffff; margin: 0; padding: 20px; }
+                .container { max-width: 600px; margin: 0 auto; background: linear-gradient(145deg, #1a1a2e 0%, #16161a 100%); border-radius: 16px; padding: 30px; border: 1px solid rgba(239, 68, 68, 0.3); }
+                .header { text-align: center; margin-bottom: 25px; padding-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+                .alert-icon { font-size: 40px; margin-bottom: 10px; }
+                h2 { color: #f59e0b; margin: 0; font-size: 22px; }
+                .content { line-height: 1.8; color: #e0e0e0; }
+                .info-box { background: rgba(139, 92, 246, 0.1); border-radius: 12px; padding: 20px; margin: 20px 0; border-left: 4px solid #8b5cf6; }
+                .info-box h3 { color: #a78bfa; margin: 0 0 15px 0; }
+                .info-box p { margin: 8px 0; }
+                .customer-box { background: rgba(34, 197, 94, 0.1); border-radius: 12px; padding: 20px; margin: 20px 0; border-left: 4px solid #22c55e; }
+                .customer-box h3 { color: #22c55e; margin: 0 0 15px 0; }
+                .amount { font-size: 24px; font-weight: bold; color: #22c55e; }
+                .btn { display: inline-block; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 5px; }
+                .btn-whatsapp { background: #25D366; color: #ffffff; }
+                .btn-dashboard { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: #ffffff; }
+                .footer { margin-top: 30px; text-align: center; font-size: 12px; color: #666; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <div class="alert-icon">🔔</div>
+                    <h2>New ' . esc_html($service_name) . ' Request!</h2>
+                </div>
+                <div class="content">
+                    <div class="customer-box">
+                        <h3>👤 Customer Information</h3>
+                        <p><strong>Name:</strong> ' . esc_html($user->display_name) . '</p>
+                        <p><strong>Email:</strong> ' . esc_html($user->user_email) . '</p>
+                        <p><strong>User ID:</strong> ' . esc_html($purchase->user_id) . '</p>
+                    </div>
+                    
+                    <div class="info-box">
+                        <h3>📋 Service Details</h3>
+                        <p><strong>Service:</strong> ' . esc_html($service_name) . '</p>
+                        <p><strong>Reference:</strong> ' . esc_html($purchase->reference) . '</p>
+                        <p><strong>Amount Paid:</strong> <span class="amount">₦' . number_format($purchase->amount) . '</span></p>
+                        <p><strong>Date:</strong> ' . date('F j, Y, g:i A') . '</p>
+                        ' . $details_html . '
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 25px;">
+                        <p style="color: #f59e0b; font-weight: bold;">⚡ Please process this request as soon as possible!</p>
+                        <a href="' . esc_url(admin_url('admin.php?page=zonatech-dashboard#nin-requests')) . '" class="btn btn-dashboard">
+                            📊 Go to Admin Dashboard
+                        </a>
+                    </div>
+                </div>
+                <div class="footer">
+                    <p>This is an automated notification from ZonaTech NG</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        ';
+        
+        $from_email = defined('ZONATECH_SUPPORT_EMAIL') ? ZONATECH_SUPPORT_EMAIL : get_option('admin_email');
+        $headers = array(
+            'Content-Type: text/html; charset=UTF-8',
+            'From: ZonaTech NG <' . sanitize_email($from_email) . '>'
+        );
+        
+        wp_mail($admin_email, $subject_line, $message, $headers);
     }
     
     private function send_nin_service_confirmation_email($purchase, $meta_data) {
@@ -427,7 +653,9 @@ class ZonaTech_Paystack {
         $service_names = array(
             'nin_slip_download' => 'NIN Slip Download',
             'nin_modification' => 'NIN Data Modification',
-            'nin_dob_correction' => 'NIN Date of Birth Correction'
+            'nin_dob_correction' => 'NIN Date of Birth Correction',
+            'nin_verification' => 'NIN Verification',
+            'nin_validation' => 'NIN Validation'
         );
         $service_name = $service_names[$purchase->purchase_type] ?? 'NIN Service';
         $subject_line = '✅ ' . $service_name . ' Request Received - ZonaTech NG';
@@ -634,6 +862,12 @@ class ZonaTech_Paystack {
                 return 'NIN Data Modification';
             case 'nin_dob_correction':
                 return 'NIN Date of Birth Correction';
+            case 'nin_verification':
+                $slip_type = $meta_data['slip_type'] ?? 'regular';
+                return 'NIN Verification (' . ucfirst($slip_type) . ' Slip)';
+            case 'nin_validation':
+                $validation_type = $meta_data['validation_type'] ?? '';
+                return 'NIN Validation (' . ucwords(str_replace('_', ' ', $validation_type)) . ')';
             default:
                 return 'ZonaTech Purchase';
         }
