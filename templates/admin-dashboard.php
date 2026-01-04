@@ -26,41 +26,38 @@ global $wpdb;
 $message = '';
 $message_type = '';
 
-// Handle bulk delete questions by subject and year
+// Handle bulk delete questions by subject (no year required)
 if (isset($_POST['delete_subject_year']) && wp_verify_nonce($_POST['delete_subject_year_nonce'], 'zonatech_delete_subject_year')) {
     $exam_type = sanitize_text_field($_POST['bulk_delete_exam_type']);
     $subject = sanitize_text_field($_POST['bulk_delete_subject']);
-    $year = intval($_POST['bulk_delete_year']);
-    $current_year = intval(date('Y'));
     
-    // Validate year is in reasonable range (1970 to current year + 1)
-    if (empty($exam_type) || empty($subject) || $year < 1970 || $year > ($current_year + 1)) {
-        $message = 'Please select valid exam type, subject, and year.';
+    if (empty($exam_type) || empty($subject)) {
+        $message = 'Please select valid exam type and subject.';
         $message_type = 'error';
     } else {
         $table_questions = $wpdb->prefix . 'zonatech_questions';
         
         // Count how many will be deleted
         $count = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM $table_questions WHERE exam_type = %s AND subject = %s AND year = %d",
-            $exam_type, $subject, $year
+            "SELECT COUNT(*) FROM $table_questions WHERE exam_type = %s AND subject = %s",
+            $exam_type, $subject
         ));
         
         if ($count > 0) {
             $result = $wpdb->query($wpdb->prepare(
-                "DELETE FROM $table_questions WHERE exam_type = %s AND subject = %s AND year = %d",
-                $exam_type, $subject, $year
+                "DELETE FROM $table_questions WHERE exam_type = %s AND subject = %s",
+                $exam_type, $subject
             ));
             
             if ($result !== false) {
-                $message = "Successfully deleted $count " . strtoupper($exam_type) . " $subject $year questions!";
+                $message = "Successfully deleted $count " . strtoupper($exam_type) . " $subject questions!";
                 $message_type = 'success';
             } else {
                 $message = 'Failed to delete questions. Database error.';
                 $message_type = 'error';
             }
         } else {
-            $message = "No questions found for " . strtoupper($exam_type) . " $subject $year.";
+            $message = "No questions found for " . strtoupper($exam_type) . " $subject.";
             $message_type = 'warning';
         }
     }
@@ -108,7 +105,6 @@ if (isset($_POST['edit_question']) && wp_verify_nonce($_POST['edit_question_nonc
                 array(
                     'exam_type' => sanitize_text_field($_POST['exam_type']),
                     'subject' => sanitize_text_field($_POST['subject']),
-                    'year' => intval($_POST['year']),
                     'question_text' => sanitize_textarea_field($_POST['question_text']),
                     'option_a' => sanitize_text_field($_POST['option_a']),
                     'option_b' => sanitize_text_field($_POST['option_b']),
@@ -118,7 +114,7 @@ if (isset($_POST['edit_question']) && wp_verify_nonce($_POST['edit_question_nonc
                     'explanation' => sanitize_textarea_field($_POST['explanation'])
                 ),
                 array('id' => $question_id),
-                array('%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s'),
+                array('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s'),
                 array('%d')
             );
             if ($result !== false) {
@@ -139,7 +135,6 @@ if (isset($_POST['edit_question']) && wp_verify_nonce($_POST['edit_question_nonc
 if (isset($_POST['add_single_question']) && wp_verify_nonce($_POST['question_nonce'], 'zonatech_add_question')) {
     $exam_type = sanitize_text_field($_POST['exam_type']);
     $subject = sanitize_text_field($_POST['subject']);
-    $year = intval($_POST['year']);
     $question_text = sanitize_textarea_field($_POST['question_text']);
     $option_a = sanitize_text_field($_POST['option_a']);
     $option_b = sanitize_text_field($_POST['option_b']);
@@ -153,7 +148,7 @@ if (isset($_POST['add_single_question']) && wp_verify_nonce($_POST['question_non
     $result = $wpdb->insert($table_questions, array(
         'exam_type' => $exam_type,
         'subject' => $subject,
-        'year' => $year,
+        'year' => 0, // Year not required - questions are merged
         'question_text' => $question_text,
         'option_a' => $option_a,
         'option_b' => $option_b,
@@ -430,8 +425,8 @@ if (isset($_POST['bulk_upload_questions']) && wp_verify_nonce($_POST['bulk_nonce
                 }
             }
             
-            // Check if we have the required columns
-            $required = array('exam_type', 'subject', 'year', 'question_text', 'option_a', 'option_b', 'option_c', 'option_d', 'correct_answer');
+            // Check if we have the required columns (year is optional now)
+            $required = array('exam_type', 'subject', 'question_text', 'option_a', 'option_b', 'option_c', 'option_d', 'correct_answer');
             $missing_columns = array();
             foreach ($required as $field) {
                 if ($columns[$field] === null) {
@@ -439,10 +434,82 @@ if (isset($_POST['bulk_upload_questions']) && wp_verify_nonce($_POST['bulk_nonce
                 }
             }
             
-            if (!empty($missing_columns)) {
+            // Check for simple Question,Answer format
+            $is_simple_format = false;
+            if (!empty($missing_columns) && isset($header_map['question']) && isset($header_map['answer'])) {
+                $is_simple_format = true;
+                $missing_columns = array(); // Clear missing columns - we'll handle this format
+            }
+            
+            if (!empty($missing_columns) && !$is_simple_format) {
                 fclose($handle);
-                $message = 'CSV is missing required columns: ' . implode(', ', $missing_columns) . '. Required columns: exam_type, subject, year, question_text, option_a, option_b, option_c, option_d, correct_answer. Or use a document-style CSV with numbered questions.';
+                $message = 'CSV is missing required columns: ' . implode(', ', $missing_columns) . '. Required columns: exam_type, subject, question_text, option_a, option_b, option_c, option_d, correct_answer. Or use a simple "Question,Answer" format, or a document-style CSV with numbered questions.';
                 $message_type = 'error';
+            } else if ($is_simple_format) {
+                // Handle simple Question,Answer format
+                // Get exam_type and subject from the form selection
+                $form_exam_type = isset($_POST['exam_type']) ? sanitize_text_field($_POST['exam_type']) : 'jamb';
+                $form_subject = isset($_POST['subject']) ? sanitize_text_field($_POST['subject']) : 'Christian Religious Studies';
+                
+                $table_questions = $wpdb->prefix . 'zonatech_questions';
+                $success_count = 0;
+                $error_count = 0;
+                $row_num = 1;
+                
+                while (($row = fgetcsv($handle)) !== false) {
+                    $row_num++;
+                    
+                    $question_text = isset($row[$header_map['question']]) ? sanitize_textarea_field(trim($row[$header_map['question']])) : '';
+                    $answer_text = isset($row[$header_map['answer']]) ? sanitize_text_field(trim($row[$header_map['answer']])) : '';
+                    
+                    // Skip empty rows
+                    if (empty($question_text)) {
+                        continue;
+                    }
+                    
+                    // Extract the correct answer from format like "Correct: Elijah"
+                    $correct_answer_text = '';
+                    if (preg_match('/^Correct:\s*(.+)$/i', $answer_text, $matches)) {
+                        $correct_answer_text = trim($matches[1]);
+                    } else {
+                        $correct_answer_text = $answer_text;
+                    }
+                    
+                    // For simple format, we store the answer text as the correct answer
+                    // and leave options empty (or set option_a as the correct answer)
+                    $result = $wpdb->insert($table_questions, array(
+                        'exam_type' => $form_exam_type,
+                        'subject' => $form_subject,
+                        'year' => 0, // No year for merged questions
+                        'question_text' => $question_text,
+                        'option_a' => $correct_answer_text,
+                        'option_b' => '',
+                        'option_c' => '',
+                        'option_d' => '',
+                        'correct_answer' => 'A', // Since we put the answer in option_a
+                        'explanation' => 'Answer: ' . $correct_answer_text,
+                        'created_at' => current_time('mysql')
+                    ));
+                    
+                    if ($result) {
+                        $success_count++;
+                    } else {
+                        $error_count++;
+                    }
+                }
+                
+                fclose($handle);
+                
+                if ($success_count > 0) {
+                    $message = "CSV import completed: {$success_count} questions imported for " . strtoupper($form_exam_type) . " {$form_subject}!";
+                    if ($error_count > 0) {
+                        $message .= " ({$error_count} errors)";
+                    }
+                    $message_type = 'success';
+                } else {
+                    $message = 'No questions were imported. Check your CSV format.';
+                    $message_type = 'error';
+                }
             } else {
                 $table_questions = $wpdb->prefix . 'zonatech_questions';
                 $success_count = 0;
@@ -485,11 +552,11 @@ if (isset($_POST['bulk_upload_questions']) && wp_verify_nonce($_POST['bulk_nonce
                         continue;
                     }
                     
-                    // Insert into database
+                    // Insert into database (year is optional - use 0 for merged questions)
                     $result = $wpdb->insert($table_questions, array(
                         'exam_type' => $exam_type,
                         'subject' => $subject,
-                        'year' => $year > 0 ? $year : intval(date('Y')),
+                        'year' => $year > 0 ? $year : 0,
                         'question_text' => $question_text,
                         'option_a' => $option_a,
                         'option_b' => $option_b,
@@ -522,9 +589,9 @@ if (isset($_POST['bulk_upload_questions']) && wp_verify_nonce($_POST['bulk_nonce
                 } else {
                     $message_type = 'error';
                 }
-                }
-                }
             }
+        }
+        }
         } catch (Exception $e) {
             $message = 'An error occurred while processing the CSV file: ' . esc_html($e->getMessage());
             $message_type = 'error';
@@ -2186,10 +2253,10 @@ $current_user = wp_get_current_user();
                     <?php endforeach; ?>
                 </div>
                 
-                <!-- Bulk Delete by Subject/Year -->
+                <!-- Bulk Delete by Subject -->
                 <div class="admin-section" style="margin-bottom: 25px;">
                     <div class="section-header">
-                        <h2><i class="fas fa-trash-alt"></i> Delete Questions by Subject & Year</h2>
+                        <h2><i class="fas fa-trash-alt"></i> Delete Questions by Subject</h2>
                     </div>
                     <form method="POST" action="" onsubmit="return confirmBulkDelete();">
                         <?php wp_nonce_field('zonatech_delete_subject_year', 'delete_subject_year_nonce'); ?>
@@ -2207,15 +2274,6 @@ $current_user = wp_get_current_user();
                                 <label>Subject *</label>
                                 <select name="bulk_delete_subject" id="bulk_delete_subject" required>
                                     <option value="">Select Subject</option>
-                                </select>
-                            </div>
-                            <div class="admin-form-group">
-                                <label>Year *</label>
-                                <select name="bulk_delete_year" id="bulk_delete_year" required>
-                                    <option value="">Select Year</option>
-                                    <?php for ($y = date('Y'); $y >= 1970; $y--): ?>
-                                    <option value="<?php echo $y; ?>"><?php echo $y; ?></option>
-                                    <?php endfor; ?>
                                 </select>
                             </div>
                         </div>
@@ -2592,7 +2650,7 @@ $current_user = wp_get_current_user();
                 <form method="POST" action="">
                     <?php wp_nonce_field('zonatech_add_question', 'question_nonce'); ?>
                     
-                    <div class="admin-form-row-3">
+                    <div class="admin-form-row">
                         <div class="admin-form-group">
                             <label>Exam Type *</label>
                             <select name="exam_type" required>
@@ -2606,15 +2664,6 @@ $current_user = wp_get_current_user();
                             <label>Subject *</label>
                             <select name="subject" id="modalSubject" required>
                                 <option value="">Select Subject</option>
-                            </select>
-                        </div>
-                        <div class="admin-form-group">
-                            <label>Year *</label>
-                            <select name="year" required>
-                                <option value="">Select Year</option>
-                                <?php for ($y = date('Y'); $y >= 2010; $y--): ?>
-                                <option value="<?php echo $y; ?>"><?php echo $y; ?></option>
-                                <?php endfor; ?>
                             </select>
                         </div>
                     </div>
@@ -2702,8 +2751,8 @@ $current_user = wp_get_current_user();
                 <div style="margin-top: 20px; padding: 15px; background: rgba(59, 130, 246, 0.1); border-radius: 10px;">
                     <h4 style="margin-bottom: 10px; color: #3b82f6;"><i class="fas fa-info-circle"></i> CSV Format Guide</h4>
                     <p style="font-size: 13px; color: rgba(255,255,255,0.7); line-height: 1.6;">
-                        <strong>Option 1 - Structured CSV:</strong> Each row with columns: exam_type (jamb/waec/neco), subject, year, question_text, option_a, option_b, option_c, option_d, correct_answer (A/B/C/D), explanation (optional)<br><br>
-                        <strong>Option 2 - Document-style:</strong> Questions starting from 2010 with numbered format (1., 2., etc.) and options (A., B., C., D.). Answer keys should be in tabular format like "1. D    2. A    3. C" with 3+ answers per line.
+                        <strong>Option 1 - Structured CSV:</strong> Each row with columns: exam_type (jamb/waec/neco), subject, question_text, option_a, option_b, option_c, option_d, correct_answer (A/B/C/D), explanation (optional)<br><br>
+                        <strong>Option 2 - Document-style:</strong> Questions with numbered format (1., 2., etc.) and options (A., B., C., D.). Answer keys should be in tabular format like "1. D    2. A    3. C" with 3+ answers per line, or highlighted as "1. A" per line.
                     </p>
                 </div>
             </div>
@@ -3093,14 +3142,6 @@ $current_user = wp_get_current_user();
                             <option value="">Select Subject</option>
                         </select>
                     </div>
-                    <div class="admin-form-group">
-                        <label>Year *</label>
-                        <select name="year" id="edit_year" required>
-                            <?php for ($y = date('Y'); $y >= 2010; $y--): ?>
-                            <option value="<?php echo $y; ?>"><?php echo $y; ?></option>
-                            <?php endfor; ?>
-                        </select>
-                    </div>
                 </div>
                 
                 <div class="admin-form-group">
@@ -3241,9 +3282,10 @@ $current_user = wp_get_current_user();
         
         // Download CSV template
         function downloadCSVTemplate() {
-            const headers = 'exam_type,subject,year,question_text,option_a,option_b,option_c,option_d,correct_answer,explanation\n';
-            const example = 'jamb,Mathematics,2023,"What is 2 + 2?",3,4,5,6,B,"2 + 2 equals 4"';
-            const blob = new Blob([headers + example], { type: 'text/csv' });
+            const headers = 'exam_type,subject,question_text,option_a,option_b,option_c,option_d,correct_answer,explanation\n';
+            const example = 'jamb,Mathematics,"What is 2 + 2?",3,4,5,6,B,"2 + 2 equals 4"\n';
+            const simpleFormat = '\n# OR use simple Question,Answer format:\n# Question,Answer\n# "Who said this?","Correct: Elijah"\n';
+            const blob = new Blob([headers + example + simpleFormat], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -3398,7 +3440,6 @@ $current_user = wp_get_current_user();
         function viewQuestion(question) {
             document.getElementById('edit_question_id').value = question.id;
             document.getElementById('edit_exam_type').value = question.exam_type.toLowerCase();
-            document.getElementById('edit_year').value = question.year;
             document.getElementById('edit_question_text').value = question.question_text;
             document.getElementById('edit_option_a').value = question.option_a;
             document.getElementById('edit_option_b').value = question.option_b;
@@ -3484,14 +3525,13 @@ $current_user = wp_get_current_user();
         function confirmBulkDelete() {
             const examType = document.getElementById('bulk_delete_exam_type').value;
             const subject = document.getElementById('bulk_delete_subject').value;
-            const year = document.getElementById('bulk_delete_year').value;
             
-            if (!examType || !subject || !year) {
-                alert('Please select exam type, subject, and year.');
+            if (!examType || !subject) {
+                alert('Please select exam type and subject.');
                 return false;
             }
             
-            return confirm('Are you sure you want to delete ALL ' + examType.toUpperCase() + ' ' + subject + ' ' + year + ' questions?\n\nThis action cannot be undone!');
+            return confirm('Are you sure you want to delete ALL ' + examType.toUpperCase() + ' ' + subject + ' questions?\n\nThis action cannot be undone!');
         }
         
         // GVerifyer API Functions

@@ -130,17 +130,7 @@ if (!defined('ABSPATH')) exit;
                         </div>
                     </div>
                 </div>
-                <div class="col col-md-12" style="flex: 1; min-width: 150px;">
-                    <div class="form-group">
-                        <label for="year-select" class="text-white"><i class="fas fa-calendar-alt"></i> Year</label>
-                        <div class="input-with-icon">
-                            <i class="fas fa-calendar-alt input-icon"></i>
-                            <select id="year-select" class="form-control form-control-icon">
-                                <option value="">Select Year</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
+
                 <div class="col col-md-12" style="flex: 0 0 auto;">
                     <div class="form-group">
                         <label class="text-white">&nbsp;</label>
@@ -172,7 +162,7 @@ if (!defined('ABSPATH')) exit;
                 <div class="glass-card text-center" style="padding: 3rem;">
                     <i class="fas fa-book-open" style="font-size: 3rem; color: var(--zona-purple); margin-bottom: 1rem;"></i>
                     <h3 class="text-white">Select Your Questions</h3>
-                    <p class="text-muted">Choose an exam type, subject, and year to view past questions.</p>
+                    <p class="text-muted">Choose an exam type and subject to view past questions.</p>
                 </div>
             <?php endif; ?>
         </div>
@@ -185,11 +175,11 @@ if (!defined('ABSPATH')) exit;
             <div class="cards-grid">
                 <div class="feature-card">
                     <div class="feature-icon">
-                        <i class="fas fa-calendar-alt"></i>
+                        <i class="fas fa-database"></i>
                     </div>
                     <div class="feature-content">
-                        <h4 class="text-white">2010 - Present</h4>
-                        <p>Access questions from over 14 years of examinations</p>
+                        <h4 class="text-white">Comprehensive Bank</h4>
+                        <p>Access thousands of questions from all years merged together</p>
                     </div>
                 </div>
                 <div class="feature-card">
@@ -286,15 +276,13 @@ jQuery(document).ready(function($) {
     // Past Questions - Subject and Year Filtering
     // =============================================
     
-    // When exam type changes, load subjects and years
+    // When exam type changes, load subjects
     $('#exam-type-select').on('change', function() {
         var examType = $(this).val();
         var $subjectSelect = $('#subject-select');
-        var $yearSelect = $('#year-select');
         
-        // Reset subject and year dropdowns
+        // Reset subject dropdown
         $subjectSelect.html('<option value="">Loading...</option>');
-        $yearSelect.html('<option value="">Select Subject First</option>');
         
         if (!examType) {
             $subjectSelect.html('<option value="">Select Subject</option>');
@@ -317,9 +305,6 @@ jQuery(document).ready(function($) {
                         options += '<option value="' + subject + '">' + subject + '</option>';
                     });
                     $subjectSelect.html(options);
-                    
-                    // Also fetch years for the exam type
-                    fetchYears(examType, '');
                 } else {
                     $subjectSelect.html('<option value="">No subjects available</option>');
                     showNotification('No subjects found for this exam type.', 'warning');
@@ -332,64 +317,10 @@ jQuery(document).ready(function($) {
         });
     });
     
-    // When subject changes, load years for that subject
-    $('#subject-select').on('change', function() {
-        var examType = $('#exam-type-select').val();
-        var subject = $(this).val();
-        
-        if (examType) {
-            fetchYears(examType, subject);
-        }
-    });
-    
-    // Function to fetch years
-    function fetchYears(examType, subject) {
-        var $yearSelect = $('#year-select');
-        $yearSelect.html('<option value="">Loading years...</option>');
-        
-        $.ajax({
-            url: zonatech_ajax.ajax_url,
-            type: 'POST',
-            data: {
-                action: 'zonatech_get_years',
-                nonce: zonatech_ajax.nonce,
-                exam_type: examType,
-                subject: subject
-            },
-            success: function(response) {
-                if (response.success && response.data.years && response.data.years.length > 0) {
-                    var options = '<option value="">Select Year</option>';
-                    $.each(response.data.years, function(index, year) {
-                        options += '<option value="' + year + '">' + year + '</option>';
-                    });
-                    $yearSelect.html(options);
-                } else {
-                    // Show default years from 2010 to present
-                    var currentYear = new Date().getFullYear();
-                    var options = '<option value="">Select Year</option>';
-                    for (var y = currentYear; y >= 2010; y--) {
-                        options += '<option value="' + y + '">' + y + '</option>';
-                    }
-                    $yearSelect.html(options);
-                }
-            },
-            error: function() {
-                // Fallback to default years
-                var currentYear = new Date().getFullYear();
-                var options = '<option value="">Select Year</option>';
-                for (var y = currentYear; y >= 2010; y--) {
-                    options += '<option value="' + y + '">' + y + '</option>';
-                }
-                $yearSelect.html(options);
-            }
-        });
-    }
-    
     // Load Questions button click
     $('#load-questions-btn').on('click', function() {
         var examType = $('#exam-type-select').val();
         var subject = $('#subject-select').val();
-        var year = $('#year-select').val();
         
         if (!examType) {
             showNotification('Please select an exam type.', 'warning');
@@ -398,11 +329,6 @@ jQuery(document).ready(function($) {
         
         if (!subject) {
             showNotification('Please select a subject.', 'warning');
-            return;
-        }
-        
-        if (!year) {
-            showNotification('Please select a year.', 'warning');
             return;
         }
         
@@ -417,8 +343,7 @@ jQuery(document).ready(function($) {
                 action: 'zonatech_get_questions',
                 nonce: zonatech_ajax.nonce,
                 exam_type: examType,
-                subject: subject,
-                year: year
+                subject: subject
             },
             success: function(response) {
                 if (response.success) {
@@ -450,7 +375,7 @@ jQuery(document).ready(function($) {
     function displayQuestions(data) {
         var container = $('#questions-container');
         var html = '<div class="glass-card">';
-        html += '<h3 class="text-white"><i class="fas fa-book-open"></i> ' + data.exam_type + ' ' + data.subject + ' - ' + data.year + '</h3>';
+        html += '<h3 class="text-white"><i class="fas fa-book-open"></i> ' + data.exam_type + ' ' + data.subject + '</h3>';
         html += '<p class="text-muted mb-2">Total Questions: ' + data.total + '</p>';
         
         if (data.questions && data.questions.length > 0) {
@@ -494,7 +419,7 @@ jQuery(document).ready(function($) {
             
             // Add quiz button
             html += '<div style="text-align: center; margin-top: 1.5rem;">';
-            html += '<button class="btn btn-primary" onclick="startQuiz(\'' + data.exam_type + '\', \'' + data.subject + '\', ' + data.year + ')">';
+            html += '<button class="btn btn-primary" onclick="startQuiz(\'' + data.exam_type + '\', \'' + data.subject + '\')">';
             html += '<i class="fas fa-play"></i> Start Practice Quiz';
             html += '</button>';
             html += '</div>';
@@ -546,10 +471,10 @@ jQuery(document).ready(function($) {
 });
 
 // Start quiz function (global scope)
-function startQuiz(examType, subject, year) {
+function startQuiz(examType, subject) {
     // Use the ZonaTechQuiz system to start the quiz
     if (typeof ZonaTechQuiz !== 'undefined' && typeof ZonaTechQuiz.startQuiz === 'function') {
-        ZonaTechQuiz.startQuiz(examType.toLowerCase(), subject, year);
+        ZonaTechQuiz.startQuiz(examType.toLowerCase(), subject);
     } else {
         console.error('ZonaTechQuiz not available');
         alert('Quiz system failed to load. Please check your internet connection and reload the page.');

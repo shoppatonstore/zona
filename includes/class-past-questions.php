@@ -457,9 +457,8 @@ class ZonaTech_Past_Questions {
         $user_id = get_current_user_id();
         $exam_type = sanitize_text_field($_POST['exam_type'] ?? '');
         $subject = sanitize_text_field($_POST['subject'] ?? '');
-        $year = intval($_POST['year'] ?? 0);
         
-        if (empty($exam_type) || empty($subject) || $year < 2010) {
+        if (empty($exam_type) || empty($subject)) {
             wp_send_json_error(array('message' => 'Invalid request parameters.'));
         }
         
@@ -483,29 +482,28 @@ class ZonaTech_Past_Questions {
         global $wpdb;
         $table_questions = $wpdb->prefix . 'zonatech_questions';
         
+        // Get all questions for this exam type and subject (from all years)
         $questions = $wpdb->get_results($wpdb->prepare(
             "SELECT id, question_text, option_a, option_b, option_c, option_d, correct_answer, explanation 
              FROM $table_questions 
-             WHERE exam_type = %s AND subject = %s AND year = %d 
+             WHERE exam_type = %s AND subject = %s 
              ORDER BY id",
             $exam_type,
-            $subject,
-            $year
+            $subject
         ));
         
         // Log activity
         ZonaTech_Activity_Log::log(
             $user_id,
             'view_questions',
-            sprintf('Accessed %s %s questions for %d', strtoupper($exam_type), $subject, $year)
+            sprintf('Accessed %s %s questions', strtoupper($exam_type), $subject)
         );
         
         wp_send_json_success(array(
             'questions' => $questions,
             'total' => count($questions),
             'exam_type' => strtoupper($exam_type),
-            'subject' => $subject,
-            'year' => $year
+            'subject' => $subject
         ));
     }
     
