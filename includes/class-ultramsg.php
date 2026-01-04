@@ -265,32 +265,73 @@ class ZonaTech_UltraMsg {
         
         $data = $status['data'];
         
+        // Handle different API response formats
+        // Check for direct status.accountStatus structure
         if (isset($data['status']) && isset($data['status']['accountStatus'])) {
             $account_status = $data['status']['accountStatus'];
+        }
+        // Check for status directly as a string
+        elseif (isset($data['status']) && is_string($data['status'])) {
+            $account_status = $data['status'];
+        }
+        // Check for accountStatus at root level
+        elseif (isset($data['accountStatus'])) {
+            $account_status = $data['accountStatus'];
+        }
+        // Check for connected status
+        elseif (isset($data['connected'])) {
+            $account_status = $data['connected'] ? 'authenticated' : 'disconnected';
+        }
+        else {
+            // Log the full response for debugging
+            error_log('UltraMsg Status Response: ' . wp_json_encode($data));
             
-            if ($account_status === 'authenticated') {
-                return array(
-                    'success' => true,
-                    'message' => 'UltraMsg is connected and ready to send messages!',
-                    'phone' => $data['status']['displayedPhonenumber'] ?? 'Unknown'
-                );
-            } elseif ($account_status === 'init') {
+            // If we have any data, try to extract useful info
+            if (!empty($data)) {
+                $status_text = is_array($data) ? wp_json_encode($data) : strval($data);
                 return array(
                     'success' => false,
-                    'message' => 'Please scan the QR code in your UltraMsg dashboard to authenticate WhatsApp.'
-                );
-            } else {
-                return array(
-                    'success' => false,
-                    'message' => 'Account status: ' . $account_status . '. Please check your UltraMsg dashboard.'
+                    'message' => 'Unexpected API response. Check settings or try again. Response: ' . substr($status_text, 0, 200)
                 );
             }
+            
+            return array(
+                'success' => false,
+                'message' => 'Could not determine connection status. Please verify your Instance ID and Token are correct.'
+            );
         }
         
-        return array(
-            'success' => false,
-            'message' => 'Could not determine connection status. Please check your credentials.'
-        );
+        // Ensure account_status is a string
+        if (is_array($account_status)) {
+            $account_status = isset($account_status['value']) ? $account_status['value'] : wp_json_encode($account_status);
+        }
+        
+        if ($account_status === 'authenticated' || $account_status === 'connected') {
+            $phone = '';
+            if (isset($data['status']['displayedPhonenumber'])) {
+                $phone = $data['status']['displayedPhonenumber'];
+            } elseif (isset($data['displayedPhonenumber'])) {
+                $phone = $data['displayedPhonenumber'];
+            } elseif (isset($data['phone'])) {
+                $phone = $data['phone'];
+            }
+            
+            return array(
+                'success' => true,
+                'message' => 'UltraMsg is connected and ready to send messages!',
+                'phone' => $phone ?: 'Connected'
+            );
+        } elseif ($account_status === 'init' || $account_status === 'loading') {
+            return array(
+                'success' => false,
+                'message' => 'Please scan the QR code in your UltraMsg dashboard to authenticate WhatsApp.'
+            );
+        } else {
+            return array(
+                'success' => false,
+                'message' => 'Account status: ' . strval($account_status) . '. Please check your UltraMsg dashboard.'
+            );
+        }
     }
     
     /**
