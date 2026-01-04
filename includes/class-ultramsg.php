@@ -389,5 +389,5 @@ class ZonaTech_UltraMsg {
     }
 }
 
-// Initialize the class
-ZonaTech_UltraMsg::get_instance();
+// Note: Class is initialized on demand via ZonaTech_UltraMsg::get_instance()
+// Do NOT auto-initialize here to avoid issues with WordPress loading order
