@@ -21,8 +21,6 @@ class ZonaTech_Past_Questions {
     private function __construct() {
         add_action('wp_ajax_zonatech_get_subjects', array($this, 'get_subjects'));
         add_action('wp_ajax_nopriv_zonatech_get_subjects', array($this, 'get_subjects'));
-        add_action('wp_ajax_zonatech_get_years', array($this, 'get_years'));
-        add_action('wp_ajax_nopriv_zonatech_get_years', array($this, 'get_years'));
         add_action('wp_ajax_zonatech_get_questions', array($this, 'get_questions'));
         add_action('wp_ajax_zonatech_search_questions', array($this, 'search_questions'));
         add_action('wp_ajax_zonatech_check_access', array($this, 'check_access'));
@@ -416,35 +414,6 @@ class ZonaTech_Past_Questions {
         );
         
         return isset($all_subjects[$exam_type]) ? $all_subjects[$exam_type] : array();
-    }
-    
-    public function get_years() {
-        check_ajax_referer('zonatech_nonce', 'nonce');
-        
-        $exam_type = sanitize_text_field($_POST['exam_type'] ?? '');
-        $subject = sanitize_text_field($_POST['subject'] ?? '');
-        
-        if (empty($exam_type)) {
-            wp_send_json_error(array('message' => 'Exam type is required.'));
-        }
-        
-        global $wpdb;
-        $table_questions = $wpdb->prefix . 'zonatech_questions';
-        
-        if (!empty($subject)) {
-            $years = $wpdb->get_col($wpdb->prepare(
-                "SELECT DISTINCT year FROM $table_questions WHERE exam_type = %s AND subject = %s ORDER BY year DESC",
-                $exam_type,
-                $subject
-            ));
-        } else {
-            $years = $wpdb->get_col($wpdb->prepare(
-                "SELECT DISTINCT year FROM $table_questions WHERE exam_type = %s ORDER BY year DESC",
-                $exam_type
-            ));
-        }
-        
-        wp_send_json_success(array('years' => $years));
     }
     
     public function get_questions() {
