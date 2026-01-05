@@ -965,6 +965,35 @@ $top_subjects = $wpdb->get_results(
      LIMIT 5"
 );
 
+// Get uploaded subjects with question counts (grouped by exam_type and subject)
+$uploaded_subjects = $wpdb->get_results(
+    "SELECT exam_type, subject, COUNT(*) as question_count 
+     FROM $table_questions 
+     GROUP BY exam_type, subject 
+     ORDER BY exam_type, subject"
+);
+
+// Create a lookup array for quick access
+$uploaded_subjects_lookup = array();
+foreach ($uploaded_subjects as $row) {
+    $key = strtolower($row->exam_type) . '_' . strtolower($row->subject);
+    $uploaded_subjects_lookup[$key] = (int) $row->question_count;
+}
+
+// Get all available subjects from the categories
+$all_subjects = array();
+if (class_exists('ZonaTech_Past_Questions')) {
+    $categories = ZonaTech_Past_Questions::get_subject_categories();
+    foreach ($categories as $cat_key => $category) {
+        foreach ($category['subjects'] as $subject) {
+            if (!in_array($subject, $all_subjects)) {
+                $all_subjects[] = $subject;
+            }
+        }
+    }
+    sort($all_subjects);
+}
+
 // Available scratch cards
 $available_cards = $wpdb->get_results(
     "SELECT card_type, COUNT(*) as count FROM $table_cards WHERE status = 'available' GROUP BY card_type"
@@ -2053,6 +2082,118 @@ $current_user = wp_get_current_user();
                     </div>
                     <?php endforeach; ?>
                 </div>
+            </div>
+            
+            <!-- Subject Upload Status Section -->
+            <div class="admin-section" id="subject-upload-status">
+                <div class="section-header">
+                    <h2><i class="fas fa-check-circle"></i> Subject Upload Status</h2>
+                    <span class="btn-admin btn-admin-outline" style="opacity: 0.7;">
+                        <?php 
+                        $uploaded_count = 0;
+                        $total_subject_count = count($all_subjects) * 3; // 3 exam types
+                        foreach (array('jamb', 'waec', 'neco') as $exam) {
+                            foreach ($all_subjects as $subject) {
+                                $key = $exam . '_' . strtolower($subject);
+                                if (isset($uploaded_subjects_lookup[$key]) && $uploaded_subjects_lookup[$key] > 0) {
+                                    $uploaded_count++;
+                                }
+                            }
+                        }
+                        echo $uploaded_count . ' of ' . $total_subject_count . ' uploaded';
+                        ?>
+                    </span>
+                </div>
+                
+                <div class="subject-status-tabs" style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                    <button class="btn-admin exam-tab active" onclick="showExamSubjects('jamb')" style="background: #8b5cf6;">JAMB</button>
+                    <button class="btn-admin exam-tab" onclick="showExamSubjects('waec')" style="background: rgba(16, 185, 129, 0.3); border: 1px solid #10b981; color: #10b981;">WAEC</button>
+                    <button class="btn-admin exam-tab" onclick="showExamSubjects('neco')" style="background: rgba(245, 158, 11, 0.3); border: 1px solid #f59e0b; color: #f59e0b;">NECO</button>
+                </div>
+                
+                <?php foreach (array('jamb', 'waec', 'neco') as $exam_type): ?>
+                <div class="exam-subjects-grid" id="subjects-<?php echo $exam_type; ?>" style="<?php echo $exam_type !== 'jamb' ? 'display: none;' : ''; ?>">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;">
+                        <?php 
+                        $exam_uploaded_count = 0;
+                        foreach ($all_subjects as $subject): 
+                            $key = $exam_type . '_' . strtolower($subject);
+                            $question_count = $uploaded_subjects_lookup[$key] ?? 0;
+                            $is_uploaded = $question_count > 0;
+                            if ($is_uploaded) $exam_uploaded_count++;
+                        ?>
+                        <div class="subject-status-card" style="
+                            background: <?php echo $is_uploaded ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(16, 185, 129, 0.1) 100%)' : 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%)'; ?>;
+                            border: 1px solid <?php echo $is_uploaded ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.2)'; ?>;
+                            border-radius: 12px;
+                            padding: 15px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: space-between;
+                            transition: all 0.3s ease;
+                        ">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <div style="
+                                    width: 40px;
+                                    height: 40px;
+                                    border-radius: 10px;
+                                    background: <?php echo $is_uploaded ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.15)'; ?>;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    color: <?php echo $is_uploaded ? '#22c55e' : '#ef4444'; ?>;
+                                    font-size: 18px;
+                                ">
+                                    <i class="fas <?php echo $is_uploaded ? 'fa-check' : 'fa-times'; ?>"></i>
+                                </div>
+                                <div>
+                                    <div style="font-weight: 600; color: #fff; font-size: 14px;"><?php echo esc_html($subject); ?></div>
+                                    <div style="font-size: 12px; color: <?php echo $is_uploaded ? '#22c55e' : 'rgba(239, 68, 68, 0.8)'; ?>;">
+                                        <?php echo $is_uploaded ? number_format($question_count) . ' questions' : 'Not uploaded'; ?>
+                                    </div>
+                                </div>
+                            </div>
+                            <?php if ($is_uploaded): ?>
+                            <div style="
+                                background: rgba(34, 197, 94, 0.2);
+                                color: #22c55e;
+                                padding: 4px 10px;
+                                border-radius: 20px;
+                                font-size: 11px;
+                                font-weight: 600;
+                            ">UPLOADED</div>
+                            <?php else: ?>
+                            <div style="
+                                background: rgba(239, 68, 68, 0.15);
+                                color: #ef4444;
+                                padding: 4px 10px;
+                                border-radius: 20px;
+                                font-size: 11px;
+                                font-weight: 600;
+                            ">PENDING</div>
+                            <?php endif; ?>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <div style="margin-top: 15px; padding: 15px; background: rgba(139, 92, 246, 0.1); border-radius: 10px; border: 1px solid rgba(139, 92, 246, 0.2);">
+                        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                            <span style="color: rgba(255,255,255,0.7);">
+                                <strong style="color: #8b5cf6;"><?php echo strtoupper($exam_type); ?></strong> Progress: 
+                                <strong style="color: #22c55e;"><?php echo $exam_uploaded_count; ?></strong> / <?php echo count($all_subjects); ?> subjects
+                            </span>
+                            <div style="background: rgba(255,255,255,0.1); border-radius: 20px; width: 200px; height: 8px; overflow: hidden;">
+                                <div style="
+                                    width: <?php echo count($all_subjects) > 0 ? ($exam_uploaded_count / count($all_subjects) * 100) : 0; ?>%;
+                                    height: 100%;
+                                    background: linear-gradient(90deg, #22c55e, #10b981);
+                                    border-radius: 20px;
+                                    transition: width 0.5s ease;
+                                "></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <?php endforeach; ?>
             </div>
             
             <!-- Two Column Layout -->
@@ -3427,6 +3568,50 @@ $current_user = wp_get_current_user();
     <script>
         function toggleSidebar() {
             document.getElementById('adminSidebar').classList.toggle('open');
+        }
+        
+        // Toggle exam subjects display in Subject Upload Status section
+        function showExamSubjects(examType) {
+            // Hide all exam subject grids
+            document.querySelectorAll('.exam-subjects-grid').forEach(grid => {
+                grid.style.display = 'none';
+            });
+            
+            // Show the selected exam type grid
+            document.getElementById('subjects-' + examType).style.display = 'block';
+            
+            // Update tab active states
+            document.querySelectorAll('.exam-tab').forEach(tab => {
+                tab.classList.remove('active');
+                tab.style.background = '';
+                if (tab.textContent.toLowerCase().includes(examType)) {
+                    tab.classList.add('active');
+                    const colors = {
+                        'jamb': '#8b5cf6',
+                        'waec': '#10b981',
+                        'neco': '#f59e0b'
+                    };
+                    tab.style.background = colors[examType];
+                    tab.style.color = '#fff';
+                    tab.style.border = 'none';
+                } else {
+                    // Reset inactive tabs to their original style
+                    const tabExam = tab.textContent.toLowerCase().trim();
+                    const inactiveColors = {
+                        'jamb': 'rgba(139, 92, 246, 0.3)',
+                        'waec': 'rgba(16, 185, 129, 0.3)',
+                        'neco': 'rgba(245, 158, 11, 0.3)'
+                    };
+                    const borderColors = {
+                        'jamb': '#8b5cf6',
+                        'waec': '#10b981',
+                        'neco': '#f59e0b'
+                    };
+                    tab.style.background = inactiveColors[tabExam];
+                    tab.style.border = '1px solid ' + borderColors[tabExam];
+                    tab.style.color = borderColors[tabExam];
+                }
+            });
         }
         
         // Section switching for admin navigation
