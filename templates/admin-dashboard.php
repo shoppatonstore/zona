@@ -555,6 +555,22 @@ if (isset($_POST['bulk_upload_questions']) && wp_verify_nonce($_POST['bulk_nonce
                         $correct_answer = 'A'; // Default to A if invalid
                     }
                     
+                    // Check for missing options - handle bypass if checkbox is checked
+                    $has_missing = empty($option_a) || empty($option_b) || empty($option_c) || empty($option_d);
+                    if ($has_missing) {
+                        if ($allow_missing_options) {
+                            // Fill in placeholders for missing options
+                            if (empty($option_a)) $option_a = '[Option A - to be added]';
+                            if (empty($option_b)) $option_b = '[Option B - to be added]';
+                            if (empty($option_c)) $option_c = '[Option C - to be added]';
+                            if (empty($option_d)) $option_d = '[Option D - to be added]';
+                        } else {
+                            // Skip this question - will count as error
+                            $error_count++;
+                            continue;
+                        }
+                    }
+                    
                     // Store option E in explanation if it exists (DB only has A-D columns)
                     $full_explanation = $explanation;
                     if (!empty($option_e)) {
@@ -587,11 +603,15 @@ if (isset($_POST['bulk_upload_questions']) && wp_verify_nonce($_POST['bulk_nonce
                 if ($success_count > 0) {
                     $message = "CSV import completed: {$success_count} questions imported for " . strtoupper($form_exam_type) . " {$form_subject}!";
                     if ($error_count > 0) {
-                        $message .= " ({$error_count} errors)";
+                        $message .= " ({$error_count} questions skipped - missing options)";
                     }
                     $message_type = 'success';
                 } else {
-                    $message = 'No questions were imported. Check your CSV format.';
+                    if ($error_count > 0 && !$allow_missing_options) {
+                        $message = "No questions imported. {$error_count} questions have missing options. Check the 'Import with missing options' checkbox to import them with placeholders.";
+                    } else {
+                        $message = 'No questions were imported. Check your CSV format.';
+                    }
                     $message_type = 'error';
                 }
             } else if ($is_simple_format) {
@@ -682,11 +702,25 @@ if (isset($_POST['bulk_upload_questions']) && wp_verify_nonce($_POST['bulk_nonce
                     $correct_answer = isset($row[$columns['correct_answer']]) ? strtoupper(sanitize_text_field(trim($row[$columns['correct_answer']]))) : '';
                     $explanation = ($columns['explanation'] !== null && isset($row[$columns['explanation']])) ? sanitize_textarea_field(trim($row[$columns['explanation']])) : '';
                     
-                    // Validate required data - need at least options A-D (Option E is optional)
-                    if (empty($exam_type) || empty($subject) || empty($question_text) || 
-                        empty($option_a) || empty($option_b) || empty($option_c) || empty($option_d)) {
+                    // Validate required data - exam_type, subject, question_text are always required
+                    if (empty($exam_type) || empty($subject) || empty($question_text)) {
                         $skipped_rows[] = $row_num;
                         continue;
+                    }
+                    
+                    // Check for missing options A-D (Option E is optional)
+                    $has_missing_opts = empty($option_a) || empty($option_b) || empty($option_c) || empty($option_d);
+                    if ($has_missing_opts) {
+                        if ($allow_missing_options) {
+                            // Fill in placeholders for missing options
+                            if (empty($option_a)) $option_a = '[Option A - to be added]';
+                            if (empty($option_b)) $option_b = '[Option B - to be added]';
+                            if (empty($option_c)) $option_c = '[Option C - to be added]';
+                            if (empty($option_d)) $option_d = '[Option D - to be added]';
+                        } else {
+                            $skipped_rows[] = $row_num;
+                            continue;
+                        }
                     }
                     
                     // Normalize exam type - skip row if invalid
@@ -736,13 +770,20 @@ if (isset($_POST['bulk_upload_questions']) && wp_verify_nonce($_POST['bulk_nonce
                     $message .= ", $error_count database errors";
                 }
                 if (!empty($skipped_rows)) {
-                    $message .= ", " . count($skipped_rows) . " rows skipped (missing data)";
+                    $skip_count = count($skipped_rows);
+                    $message .= ", $skip_count rows skipped";
+                    if (!$allow_missing_options) {
+                        $message .= " (missing data - try checking 'Import with missing options')";
+                    }
                 }
                 $message .= ".";
                 
                 if ($success_count > 0) {
                     $message_type = ($error_count > 0 || !empty($skipped_rows)) ? 'warning' : 'success';
                 } else {
+                    if (!empty($skipped_rows) && !$allow_missing_options) {
+                        $message = "No questions imported. " . count($skipped_rows) . " rows have missing data. Check the 'Import with missing options' checkbox to import with placeholders.";
+                    }
                     $message_type = 'error';
                 }
             }
