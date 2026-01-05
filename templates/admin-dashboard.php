@@ -359,95 +359,54 @@ if (isset($_POST['bulk_upload_questions']) && wp_verify_nonce($_POST['bulk_nonce
                         // Use the question importer to parse questions
                         $importer = ZonaTech_Question_Importer::get_instance();
                         
-                        // Parse by year sections (start from 1970 to include older exam years)
-                        $year_sections = $importer->parse_by_year($content, 1970);
+                        // Get exam type and subject from form (required now that year is removed)
+                        $form_exam_type = isset($_POST['bulk_exam_type']) ? sanitize_text_field($_POST['bulk_exam_type']) : '';
+                        $form_subject = isset($_POST['bulk_subject']) ? sanitize_text_field($_POST['bulk_subject']) : '';
                         
-                        if (!empty($year_sections)) {
-                            // Import all year sections
-                            $total_success = 0;
-                            $total_skipped = 0;
-                            $total_errors = 0;
-                            $years_imported = array();
-                            $total_missing_answers = 0;
-                            
-                            foreach ($year_sections as $section) {
-                                if (!empty($section['questions'])) {
-                                    $result = $importer->import_to_database(
-                                        $section['questions'],
-                                        $section['exam_type'],
-                                        $section['subject'],
-                                        $section['year'],
-                                        $allow_without_answers
-                                    );
-                                    $total_success += $result['success_count'];
-                                    $total_skipped += $result['skipped'];
-                                    $total_errors += count($result['errors']);
-                                    $total_missing_answers += isset($result['missing_answers']) ? $result['missing_answers'] : 0;
-                                    
-                                    if ($result['success_count'] > 0 && !in_array($section['year'], $years_imported)) {
-                                        $years_imported[] = $section['year'];
-                                    }
-                                }
+                        // Validate that exam type and subject are provided
+                        if (empty($form_exam_type) || empty($form_subject)) {
+                            $message = "Please select an Exam Type and Subject before uploading.";
+                            $message_type = 'error';
+                        } else {
+                            // Parse questions directly from content (no year sections required)
+                            $questions = $importer->parse_questions($content);
+                            $answers = $importer->parse_answers($content);
+                            if (!empty($answers)) {
+                                $questions = $importer->merge_questions_with_answers($questions, $answers);
                             }
                             
-                            if ($total_success > 0) {
-                                sort($years_imported);
-                                $year_range = count($years_imported) > 1 
-                                    ? min($years_imported) . '-' . max($years_imported) 
-                                    : (count($years_imported) === 1 ? $years_imported[0] : '');
-                                $message = "Multi-year import completed: {$total_success} questions extracted from years {$year_range}!";
-                                if ($total_skipped > 0) {
-                                    $message .= " ({$total_skipped} duplicates skipped)";
-                                }
-                                if ($allow_without_answers && $total_missing_answers > 0) {
-                                    $message .= " WARNING: {$total_missing_answers} questions imported without answer keys - please review and edit answers!";
-                                    $message_type = 'warning';
-                                } else {
-                                    $message_type = 'success';
-                                }
-                            } else {
-                                // Try old method as fallback - parse entire content
-                                $questions = $importer->parse_questions($content);
-                                $answers = $importer->parse_answers($content);
-                                if (!empty($answers)) {
-                                    $questions = $importer->merge_questions_with_answers($questions, $answers);
-                                }
+                            if (!empty($questions)) {
+                                // Use form-provided exam type and subject
+                                $result = $importer->import_to_database($questions, $form_exam_type, $form_subject, intval(date('Y')), $allow_without_answers);
                                 
-                                if (!empty($questions)) {
-                                    $result = $importer->import_to_database($questions, $detected_exam, $detected_subject, $detected_year, $allow_without_answers);
-                                    
-                                    if ($result['success_count'] > 0) {
-                                        $message = "Import completed: {$result['success_count']} questions extracted!";
-                                        $message .= " (Detected: " . strtoupper($detected_exam) . " $detected_subject $detected_year)";
-                                        if ($result['skipped'] > 0) {
-                                            $message .= " ({$result['skipped']} duplicates skipped)";
-                                        }
-                                        $missing = isset($result['missing_answers']) ? $result['missing_answers'] : 0;
-                                        if ($allow_without_answers && $missing > 0) {
-                                            $message .= " WARNING: {$missing} questions imported without answer keys - please review!";
-                                            $message_type = 'warning';
-                                        } else {
-                                            $message_type = 'success';
-                                        }
+                                if ($result['success_count'] > 0) {
+                                    $message = "Import completed: {$result['success_count']} questions imported!";
+                                    $message .= " (" . strtoupper($form_exam_type) . " - $form_subject)";
+                                    if ($result['skipped'] > 0) {
+                                        $message .= " ({$result['skipped']} duplicates skipped)";
+                                    }
+                                    $missing = isset($result['missing_answers']) ? $result['missing_answers'] : 0;
+                                    if ($allow_without_answers && $missing > 0) {
+                                        $message .= " WARNING: {$missing} questions imported without answer keys - please review!";
+                                        $message_type = 'warning';
                                     } else {
-                                        $error_details = !empty($result['errors']) ? ' First 3 errors: ' . implode('; ', array_slice($result['errors'], 0, 3)) : '';
-                                        $total_parsed = isset($result['total_parsed']) ? $result['total_parsed'] : 0;
-                                        $missing = isset($result['missing_answers']) ? $result['missing_answers'] : 0;
-                                        if ($missing > 0 && !$allow_without_answers) {
-                                            $message = "Found {$total_parsed} questions but {$missing} are missing answer keys. Check the 'Import without answer keys' option to import anyway.";
-                                        } else {
-                                            $message = "Questions were found but could not be imported.$error_details";
-                                        }
-                                        $message_type = 'error';
+                                        $message_type = 'success';
                                     }
                                 } else {
-                                    $message = "Could not parse questions. Make sure your document has numbered questions (1., 2., etc.) with options (A., B., C., D.) and answer keys in tabular format.";
+                                    $error_details = !empty($result['errors']) ? ' First 3 errors: ' . implode('; ', array_slice($result['errors'], 0, 3)) : '';
+                                    $total_parsed = isset($result['total_parsed']) ? $result['total_parsed'] : 0;
+                                    $missing = isset($result['missing_answers']) ? $result['missing_answers'] : 0;
+                                    if ($missing > 0 && !$allow_without_answers) {
+                                        $message = "Found {$total_parsed} questions but {$missing} are missing answer keys. Check the 'Import without answer keys' option to import anyway.";
+                                    } else {
+                                        $message = "Questions were found but could not be imported.$error_details";
+                                    }
                                     $message_type = 'error';
                                 }
+                            } else {
+                                $message = "Could not parse questions. Make sure your document has numbered questions (1., 2., etc.) with options (A., B., C., D.).";
+                                $message_type = 'error';
                             }
-                        } else {
-                            $message = "No year sections found. Make sure your document has section headers like 'USE OF ENGLISH 1978' or 'USE OF ENGLISH 2020'.";
-                            $message_type = 'error';
                         }
                     }
                 } else {
@@ -2905,6 +2864,24 @@ $current_user = wp_get_current_user();
                 <form method="POST" action="" enctype="multipart/form-data">
                     <?php wp_nonce_field('zonatech_bulk_upload', 'bulk_nonce'); ?>
                     
+                    <div class="admin-form-row" style="margin-bottom: 20px;">
+                        <div class="admin-form-group">
+                            <label><i class="fas fa-graduation-cap"></i> Exam Type *</label>
+                            <select name="bulk_exam_type" id="bulkExamType" required onchange="updateBulkSubjects()">
+                                <option value="">Select Exam Type</option>
+                                <option value="jamb">JAMB</option>
+                                <option value="waec">WAEC</option>
+                                <option value="neco">NECO</option>
+                            </select>
+                        </div>
+                        <div class="admin-form-group">
+                            <label><i class="fas fa-book"></i> Subject *</label>
+                            <select name="bulk_subject" id="bulkSubject" required>
+                                <option value="">Select Subject</option>
+                            </select>
+                        </div>
+                    </div>
+                    
                     <div class="file-upload-area" onclick="document.getElementById('csvFile').click();">
                         <i class="fas fa-cloud-upload-alt"></i>
                         <p>Click to upload CSV or Word Document</p>
@@ -3495,6 +3472,21 @@ $current_user = wp_get_current_user();
                 subjectSelect.appendChild(option);
             });
         });
+        
+        // Update subjects for bulk upload form
+        function updateBulkSubjects() {
+            const examTypeSelect = document.getElementById('bulkExamType');
+            const subjectSelect = document.getElementById('bulkSubject');
+            subjectSelect.innerHTML = '<option value="">Select Subject</option>';
+            
+            const examSubjects = subjects[examTypeSelect.value] || [];
+            examSubjects.forEach(subject => {
+                const option = document.createElement('option');
+                option.value = subject;
+                option.textContent = subject;
+                subjectSelect.appendChild(option);
+            });
+        }
         
         // NIN Fulfillment Functions
         var currentUserPhone = '';
