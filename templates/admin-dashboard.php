@@ -513,10 +513,10 @@ if (isset($_POST['bulk_upload_questions']) && wp_verify_nonce($_POST['bulk_nonce
                         $correct_answer = 'A'; // Default to A if invalid
                     }
                     
-                    // Store option E in explanation if it exists
+                    // Store option E in explanation if it exists (DB only has A-D columns)
                     $full_explanation = $explanation;
                     if (!empty($option_e)) {
-                        $full_explanation = "E. $option_e\n\n$explanation";
+                        $full_explanation = "[OPTION_E]: $option_e\n\n$explanation";
                     }
                     
                     $result = $wpdb->insert($table_questions, array(
@@ -636,10 +636,11 @@ if (isset($_POST['bulk_upload_questions']) && wp_verify_nonce($_POST['bulk_nonce
                     $option_b = isset($row[$columns['option_b']]) ? sanitize_text_field(trim($row[$columns['option_b']])) : '';
                     $option_c = isset($row[$columns['option_c']]) ? sanitize_text_field(trim($row[$columns['option_c']])) : '';
                     $option_d = isset($row[$columns['option_d']]) ? sanitize_text_field(trim($row[$columns['option_d']])) : '';
+                    $option_e = ($columns['option_e'] !== null && isset($row[$columns['option_e']])) ? sanitize_text_field(trim($row[$columns['option_e']])) : '';
                     $correct_answer = isset($row[$columns['correct_answer']]) ? strtoupper(sanitize_text_field(trim($row[$columns['correct_answer']]))) : '';
                     $explanation = ($columns['explanation'] !== null && isset($row[$columns['explanation']])) ? sanitize_textarea_field(trim($row[$columns['explanation']])) : '';
                     
-                    // Validate required data - need all 4 options
+                    // Validate required data - need at least options A-D (Option E is optional)
                     if (empty($exam_type) || empty($subject) || empty($question_text) || 
                         empty($option_a) || empty($option_b) || empty($option_c) || empty($option_d)) {
                         $skipped_rows[] = $row_num;
@@ -659,6 +660,12 @@ if (isset($_POST['bulk_upload_questions']) && wp_verify_nonce($_POST['bulk_nonce
                         continue;
                     }
                     
+                    // Store Option E in explanation if present (DB only has A-D columns)
+                    $full_explanation = $explanation;
+                    if (!empty($option_e)) {
+                        $full_explanation = "[OPTION_E]: " . $option_e . "\n\n" . $explanation;
+                    }
+                    
                     // Insert into database (year is optional - use 0 for merged questions)
                     $result = $wpdb->insert($table_questions, array(
                         'exam_type' => $exam_type,
@@ -670,7 +677,7 @@ if (isset($_POST['bulk_upload_questions']) && wp_verify_nonce($_POST['bulk_nonce
                         'option_c' => $option_c,
                         'option_d' => $option_d,
                         'correct_answer' => $correct_answer,
-                        'explanation' => $explanation,
+                        'explanation' => $full_explanation,
                         'created_at' => current_time('mysql')
                     ));
                     
