@@ -98,7 +98,8 @@ class ZonaTech_Question_Importer {
                             'option_c' => $inline_options['option_c'],
                             'option_d' => $inline_options['option_d'],
                             'option_e' => isset($inline_options['option_e']) ? $inline_options['option_e'] : '',
-                            'correct_answer' => ''
+                            'correct_answer' => '',
+                            'explanation' => ''
                         );
                         $collecting_option = null;
                     } else {
@@ -113,7 +114,8 @@ class ZonaTech_Question_Importer {
                             'option_c' => '',
                             'option_d' => '',
                             'option_e' => '',
-                            'correct_answer' => ''
+                            'correct_answer' => '',
+                            'explanation' => ''
                         );
                         $collecting_option = null;
                     }
@@ -122,40 +124,74 @@ class ZonaTech_Question_Importer {
             }
             
             // Check if line is an option (A., B., C., D., E. or A), B), C), D), E))
+            // Also handles formats like "- A." or "- A)" (with dash prefix)
             if ($current_question !== null) {
-                // Match options like "A. text", "A) text", "A text", or just "A. text"
+                // Match options like "A. text", "A) text", "A text", "- A. text", "- A) text"
                 // Now including option E for 5-option questions
-                if (preg_match('/^([A-Ea-e])\s*[.\)]\s*(.*)$/i', $line, $matches)) {
+                // Also handle ✓ symbol for marking correct answers
+                if (preg_match('/^[-–—]?\s*([A-Ea-e])\s*[.\)]\s*(.*)$/i', $line, $matches)) {
                     $option_letter = strtoupper($matches[1]);
                     $option_text = trim($matches[2]);
+                    
+                    // Check if this option is marked as correct with ✓ or other markers
+                    $is_correct = false;
+                    if (preg_match('/[✓✔√]/', $option_text)) {
+                        $is_correct = true;
+                        // Remove the check mark from the option text
+                        $option_text = preg_replace('/\s*[✓✔√]\s*/', '', $option_text);
+                        $option_text = trim($option_text);
+                    }
                     
                     switch ($option_letter) {
                         case 'A':
                             $current_question['option_a'] = $option_text;
                             $collecting_option = 'option_a';
+                            if ($is_correct) $current_question['correct_answer'] = 'A';
                             break;
                         case 'B':
                             $current_question['option_b'] = $option_text;
                             $collecting_option = 'option_b';
+                            if ($is_correct) $current_question['correct_answer'] = 'B';
                             break;
                         case 'C':
                             $current_question['option_c'] = $option_text;
                             $collecting_option = 'option_c';
+                            if ($is_correct) $current_question['correct_answer'] = 'C';
                             break;
                         case 'D':
                             $current_question['option_d'] = $option_text;
                             $collecting_option = 'option_d';
+                            if ($is_correct) $current_question['correct_answer'] = 'D';
                             break;
                         case 'E':
                             $current_question['option_e'] = $option_text;
                             $collecting_option = 'option_e';
+                            if ($is_correct) $current_question['correct_answer'] = 'E';
                             break;
                     }
                 } else if ($current_question !== null && !empty($current_question['question_text'])) {
+                    // Check for "Explanation:" lines
+                    if (preg_match('/^Explanation:\s*(.*)$/i', $line, $exp_match)) {
+                        if (!isset($current_question['explanation'])) {
+                            $current_question['explanation'] = '';
+                        }
+                        $current_question['explanation'] .= trim($exp_match[1]);
+                        $collecting_option = 'explanation';
+                        continue;
+                    }
+                    
+                    // Skip separator lines like "---"
+                    if (preg_match('/^[-–—]{2,}$/', $line)) {
+                        continue;
+                    }
+                    
                     // If it's not an option and we have a current question
                     if (empty($current_question['option_a'])) {
                         // Still collecting question text
                         $current_question['question_text'] .= ' ' . $line;
+                    } else if ($collecting_option === 'explanation' && isset($current_question['explanation'])) {
+                        // Continue collecting explanation
+                        $current_question['explanation'] .= ' ' . $line;
                     } else if ($collecting_option !== null && !empty($current_question[$collecting_option])) {
                         // Continue collecting the current option (multi-line option)
                         $current_question[$collecting_option] .= ' ' . $line;
