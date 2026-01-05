@@ -79,12 +79,18 @@ class ZonaTech_Quiz_System {
             sprintf('Started %s %s quiz (%d questions)', strtoupper($exam_type), $subject, count($questions))
         );
         
+        // Timer: 10 minutes per 50 questions = 12 seconds per question
+        // 50 questions = 600 seconds (10 min)
+        // 100 questions = 1200 seconds (20 min)
+        // 200 questions = 2400 seconds (40 min)
+        $time_limit = count($questions) * 12; // 12 seconds per question
+        
         wp_send_json_success(array(
             'questions' => $questions,
             'total' => count($questions),
             'exam_type' => strtoupper($exam_type),
             'subject' => $subject,
-            'time_limit' => count($questions) * 60 // 1 minute per question
+            'time_limit' => $time_limit
         ));
     }
     
