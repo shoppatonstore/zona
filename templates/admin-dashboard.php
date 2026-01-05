@@ -91,9 +91,9 @@ if (isset($_POST['edit_question']) && wp_verify_nonce($_POST['edit_question_nonc
     $question_id = intval($_POST['question_id']);
     $correct_answer = strtoupper(sanitize_text_field($_POST['correct_answer']));
     
-    // Validate correct_answer is A, B, C, or D
-    if (!in_array($correct_answer, array('A', 'B', 'C', 'D'))) {
-        $message = 'Invalid correct answer. Must be A, B, C, or D.';
+    // Validate correct_answer is A, B, C, D, or E
+    if (!in_array($correct_answer, array('A', 'B', 'C', 'D', 'E'))) {
+        $message = 'Invalid correct answer. Must be A, B, C, D, or E.';
         $message_type = 'error';
     } elseif ($question_id > 0) {
         $table_questions = $wpdb->prefix . 'zonatech_questions';
@@ -409,7 +409,9 @@ if (isset($_POST['bulk_upload_questions']) && wp_verify_nonce($_POST['bulk_nonce
                 'option_b' => array('option_b', 'optionb', 'b', 'option b', 'opt_b'),
                 'option_c' => array('option_c', 'optionc', 'c', 'option c', 'opt_c'),
                 'option_d' => array('option_d', 'optiond', 'd', 'option d', 'opt_d'),
-                'correct_answer' => array('correct_answer', 'correctanswer', 'answer', 'correct', 'ans', 'correct_option'),
+                'option_e' => array('option_e', 'optione', 'e', 'option e', 'opt_e'),
+                'options' => array('options', 'opts', 'choices', 'answers'),
+                'correct_answer' => array('correct_answer', 'correctanswer', 'answer', 'correct', 'ans', 'correct_option', 'correct answer'),
                 'explanation' => array('explanation', 'explain', 'solution', 'note')
             );
             
@@ -441,10 +443,115 @@ if (isset($_POST['bulk_upload_questions']) && wp_verify_nonce($_POST['bulk_nonce
                 $missing_columns = array(); // Clear missing columns - we'll handle this format
             }
             
-            if (!empty($missing_columns) && !$is_simple_format) {
+            // Check for Question,Options,Correct Answer,Explanation format (with options as array string)
+            $is_options_array_format = false;
+            if (!empty($missing_columns) && !$is_simple_format && isset($header_map['question']) && $columns['options'] !== null) {
+                $is_options_array_format = true;
+                $missing_columns = array(); // Clear missing columns - we'll handle this format
+            }
+            
+            if (!empty($missing_columns) && !$is_simple_format && !$is_options_array_format) {
                 fclose($handle);
-                $message = 'CSV is missing required columns: ' . implode(', ', $missing_columns) . '. Required columns: exam_type, subject, question_text, option_a, option_b, option_c, option_d, correct_answer. Or use a simple "Question,Answer" format, or a document-style CSV with numbered questions.';
+                $message = 'CSV is missing required columns: ' . implode(', ', $missing_columns) . '. Required columns: exam_type, subject, question_text, option_a, option_b, option_c, option_d, correct_answer. Or use a simple "Question,Answer" format, or "Question,Options,Correct Answer,Explanation" format, or a document-style CSV with numbered questions.';
                 $message_type = 'error';
+            } else if ($is_options_array_format) {
+                // Handle Question,Options,Correct Answer,Explanation format
+                // Options are in array format like: ['A. Elisha', 'B. Ezekiel', 'C. Elijah', 'D. Obadiah', 'E. Nehemiah']
+                $form_exam_type = isset($_POST['exam_type']) ? sanitize_text_field($_POST['exam_type']) : 'jamb';
+                $form_subject = isset($_POST['subject']) ? sanitize_text_field($_POST['subject']) : 'Christian Religious Studies';
+                
+                $table_questions = $wpdb->prefix . 'zonatech_questions';
+                $success_count = 0;
+                $error_count = 0;
+                $row_num = 1;
+                
+                while (($row = fgetcsv($handle)) !== false) {
+                    $row_num++;
+                    
+                    $question_text = isset($row[$header_map['question']]) ? sanitize_textarea_field(trim($row[$header_map['question']])) : '';
+                    $options_string = isset($row[$columns['options']]) ? trim($row[$columns['options']]) : '';
+                    $correct_answer = ($columns['correct_answer'] !== null && isset($row[$columns['correct_answer']])) ? strtoupper(sanitize_text_field(trim($row[$columns['correct_answer']]))) : '';
+                    $explanation = ($columns['explanation'] !== null && isset($row[$columns['explanation']])) ? sanitize_textarea_field(trim($row[$columns['explanation']])) : '';
+                    
+                    // Skip empty rows
+                    if (empty($question_text)) {
+                        continue;
+                    }
+                    
+                    // Parse options from array string like: ['A. Elisha', 'B. Ezekiel', ...]
+                    $option_a = '';
+                    $option_b = '';
+                    $option_c = '';
+                    $option_d = '';
+                    $option_e = '';
+                    
+                    // Remove brackets and split by comma
+                    $options_string = trim($options_string, "[]");
+                    // Match individual options in quotes
+                    preg_match_all("/['\"]([^'\"]+)['\"]/", $options_string, $option_matches);
+                    
+                    if (!empty($option_matches[1])) {
+                        foreach ($option_matches[1] as $opt) {
+                            $opt = trim($opt);
+                            // Check for A., B., C., D., E. prefixes
+                            if (preg_match('/^A\.\s*(.+)$/i', $opt, $m)) {
+                                $option_a = trim($m[1]);
+                            } elseif (preg_match('/^B\.\s*(.+)$/i', $opt, $m)) {
+                                $option_b = trim($m[1]);
+                            } elseif (preg_match('/^C\.\s*(.+)$/i', $opt, $m)) {
+                                $option_c = trim($m[1]);
+                            } elseif (preg_match('/^D\.\s*(.+)$/i', $opt, $m)) {
+                                $option_d = trim($m[1]);
+                            } elseif (preg_match('/^E\.\s*(.+)$/i', $opt, $m)) {
+                                $option_e = trim($m[1]);
+                            }
+                        }
+                    }
+                    
+                    // Validate correct_answer is A, B, C, D, or E
+                    if (!in_array($correct_answer, array('A', 'B', 'C', 'D', 'E'))) {
+                        $correct_answer = 'A'; // Default to A if invalid
+                    }
+                    
+                    // Store option E in explanation if it exists
+                    $full_explanation = $explanation;
+                    if (!empty($option_e)) {
+                        $full_explanation = "E. $option_e\n\n$explanation";
+                    }
+                    
+                    $result = $wpdb->insert($table_questions, array(
+                        'exam_type' => $form_exam_type,
+                        'subject' => $form_subject,
+                        'year' => 0, // No year for merged questions
+                        'question_text' => $question_text,
+                        'option_a' => $option_a,
+                        'option_b' => $option_b,
+                        'option_c' => $option_c,
+                        'option_d' => $option_d,
+                        'correct_answer' => $correct_answer,
+                        'explanation' => $full_explanation,
+                        'created_at' => current_time('mysql')
+                    ));
+                    
+                    if ($result) {
+                        $success_count++;
+                    } else {
+                        $error_count++;
+                    }
+                }
+                
+                fclose($handle);
+                
+                if ($success_count > 0) {
+                    $message = "CSV import completed: {$success_count} questions imported for " . strtoupper($form_exam_type) . " {$form_subject}!";
+                    if ($error_count > 0) {
+                        $message .= " ({$error_count} errors)";
+                    }
+                    $message_type = 'success';
+                } else {
+                    $message = 'No questions were imported. Check your CSV format.';
+                    $message_type = 'error';
+                }
             } else if ($is_simple_format) {
                 // Handle simple Question,Answer format
                 // Get exam_type and subject from the form selection
@@ -547,7 +654,7 @@ if (isset($_POST['bulk_upload_questions']) && wp_verify_nonce($_POST['bulk_nonce
                     }
                     
                     // Validate correct answer - skip row if invalid
-                    if (!in_array($correct_answer, array('A', 'B', 'C', 'D'))) {
+                    if (!in_array($correct_answer, array('A', 'B', 'C', 'D', 'E'))) {
                         $skipped_rows[] = $row_num;
                         continue;
                     }
