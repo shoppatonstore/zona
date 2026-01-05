@@ -168,15 +168,79 @@ if (isset($_POST['add_single_question']) && wp_verify_nonce($_POST['question_non
     }
 }
 
-// Handle bulk CSV upload
+/**
+ * Extract text content from a Word document (.docx)
+ * DOCX files are ZIP archives containing XML content
+ * 
+ * @param string $file_path Path to the DOCX file
+ * @return string|false Extracted text content or false on failure
+ */
+function zonatech_extract_docx_text($file_path) {
+    // Check if ZipArchive is available
+    if (!class_exists('ZipArchive')) {
+        return false;
+    }
+    
+    $zip = new ZipArchive();
+    if ($zip->open($file_path) !== true) {
+        return false;
+    }
+    
+    // Read the main document content
+    $xml_content = $zip->getFromName('word/document.xml');
+    $zip->close();
+    
+    if ($xml_content === false) {
+        return false;
+    }
+    
+    // Parse XML and extract text
+    $text = '';
+    
+    // Use DOMDocument to parse XML properly
+    $dom = new DOMDocument();
+    @$dom->loadXML($xml_content, LIBXML_NOENT | LIBXML_XINCLUDE | LIBXML_NOERROR | LIBXML_NOWARNING);
+    
+    // Find all text elements (w:t tags contain text)
+    $paragraphs = $dom->getElementsByTagNameNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', 'p');
+    
+    foreach ($paragraphs as $paragraph) {
+        $paragraph_text = '';
+        $text_nodes = $paragraph->getElementsByTagNameNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', 't');
+        
+        foreach ($text_nodes as $text_node) {
+            $paragraph_text .= $text_node->textContent;
+        }
+        
+        if (!empty(trim($paragraph_text))) {
+            $text .= $paragraph_text . "\n";
+        }
+    }
+    
+    return $text;
+}
+
+// Handle bulk file upload (CSV or DOCX)
 if (isset($_POST['bulk_upload_questions']) && wp_verify_nonce($_POST['bulk_nonce'], 'zonatech_bulk_upload')) {
     if (!empty($_FILES['csv_file']['tmp_name'])) {
         try {
             $file = $_FILES['csv_file']['tmp_name'];
+            $file_name = isset($_FILES['csv_file']['name']) ? $_FILES['csv_file']['name'] : '';
+            $file_extension = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
             $allow_without_answers = isset($_POST['import_without_answers']) && $_POST['import_without_answers'] === '1';
             
-            // Read the entire file content to check format
-            $full_content = file_get_contents($file);
+            // Handle DOCX file differently
+            if ($file_extension === 'docx') {
+                $full_content = zonatech_extract_docx_text($file);
+                if ($full_content === false) {
+                    $message = 'Could not read the Word document. Make sure it\'s a valid .docx file and the ZipArchive extension is enabled.';
+                    $message_type = 'error';
+                    $full_content = ''; // Prevent further processing
+                }
+            } else {
+                // Read CSV or text file content
+                $full_content = file_get_contents($file);
+            }
             
             if ($full_content === false) {
                 $message = 'Could not read the uploaded file.';
@@ -714,7 +778,7 @@ if (isset($_POST['bulk_upload_questions']) && wp_verify_nonce($_POST['bulk_nonce
             $message_type = 'error';
         }
     } else {
-        $message = 'Please select a CSV file to upload.';
+        $message = 'Please select a CSV or Word document (.docx) file to upload.';
         $message_type = 'error';
     }
 }
@@ -2756,7 +2820,7 @@ $current_user = wp_get_current_user();
             
             <div class="admin-tabs">
                 <button class="admin-tab active" onclick="switchTab('singleQuestion', this)">Single Question</button>
-                <button class="admin-tab" onclick="switchTab('bulkUpload', this)">Bulk Upload (CSV)</button>
+                <button class="admin-tab" onclick="switchTab('bulkUpload', this)">Bulk Upload</button>
             </div>
             
             <!-- Single Question Form -->
@@ -2843,9 +2907,9 @@ $current_user = wp_get_current_user();
                     
                     <div class="file-upload-area" onclick="document.getElementById('csvFile').click();">
                         <i class="fas fa-cloud-upload-alt"></i>
-                        <p>Click to upload CSV file</p>
-                        <small>Supports: Structured CSV with columns OR Document-style CSV with numbered questions</small>
-                        <input type="file" name="csv_file" id="csvFile" accept=".csv" onchange="handleFileSelect(this)">
+                        <p>Click to upload CSV or Word Document</p>
+                        <small>Supports: CSV files OR Word documents (.docx) with questions and options</small>
+                        <input type="file" name="csv_file" id="csvFile" accept=".csv,.docx" onchange="handleFileSelect(this)">
                     </div>
                     
                     <p id="selectedFile" style="text-align: center; color: #8b5cf6; margin-bottom: 15px;"></p>
@@ -2863,10 +2927,11 @@ $current_user = wp_get_current_user();
                 </form>
                 
                 <div style="margin-top: 20px; padding: 15px; background: rgba(59, 130, 246, 0.1); border-radius: 10px;">
-                    <h4 style="margin-bottom: 10px; color: #3b82f6;"><i class="fas fa-info-circle"></i> CSV Format Guide</h4>
+                    <h4 style="margin-bottom: 10px; color: #3b82f6;"><i class="fas fa-info-circle"></i> Supported File Formats</h4>
                     <p style="font-size: 13px; color: rgba(255,255,255,0.7); line-height: 1.6;">
-                        <strong>Option 1 - Structured CSV:</strong> Each row with columns: exam_type (jamb/waec/neco), subject, question_text, option_a, option_b, option_c, option_d, correct_answer (A/B/C/D), explanation (optional)<br><br>
-                        <strong>Option 2 - Document-style:</strong> Questions with numbered format (1., 2., etc.) and options (A., B., C., D.). Answer keys should be in tabular format like "1. D    2. A    3. C" with 3+ answers per line, or highlighted as "1. A" per line.
+                        <strong style="color: #10b981;"><i class="fas fa-file-word"></i> Word Documents (.docx):</strong> Upload Word documents with numbered questions and options (A., B., C., D., E.)<br><br>
+                        <strong style="color: #8b5cf6;"><i class="fas fa-file-csv"></i> CSV - Structured:</strong> Each row with columns: exam_type, subject, question_text, option_a, option_b, option_c, option_d, correct_answer, explanation<br><br>
+                        <strong style="color: #8b5cf6;"><i class="fas fa-file-csv"></i> CSV - Document-style:</strong> Numbered questions (1., 2., etc.) with options (A., B., C., D., E.) and answer keys at the end
                     </p>
                 </div>
             </div>
