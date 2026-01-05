@@ -228,6 +228,7 @@ if (isset($_POST['bulk_upload_questions']) && wp_verify_nonce($_POST['bulk_nonce
             $file_name = isset($_FILES['csv_file']['name']) ? $_FILES['csv_file']['name'] : '';
             $file_extension = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
             $allow_without_answers = isset($_POST['import_without_answers']) && $_POST['import_without_answers'] === '1';
+            $allow_missing_options = isset($_POST['import_with_missing_options']) && $_POST['import_with_missing_options'] === '1';
             
             // Handle DOCX file differently
             if ($file_extension === 'docx') {
@@ -377,7 +378,7 @@ if (isset($_POST['bulk_upload_questions']) && wp_verify_nonce($_POST['bulk_nonce
                             
                             if (!empty($questions)) {
                                 // Use form-provided exam type and subject
-                                $result = $importer->import_to_database($questions, $form_exam_type, $form_subject, intval(date('Y')), $allow_without_answers);
+                                $result = $importer->import_to_database($questions, $form_exam_type, $form_subject, intval(date('Y')), $allow_without_answers, $allow_missing_options);
                                 
                                 if ($result['success_count'] > 0) {
                                     $message = "Import completed: {$result['success_count']} questions imported!";
@@ -386,8 +387,12 @@ if (isset($_POST['bulk_upload_questions']) && wp_verify_nonce($_POST['bulk_nonce
                                         $message .= " ({$result['skipped']} duplicates skipped)";
                                     }
                                     $missing = isset($result['missing_answers']) ? $result['missing_answers'] : 0;
+                                    $missing_opts = isset($result['missing_options']) ? $result['missing_options'] : 0;
                                     if ($allow_without_answers && $missing > 0) {
                                         $message .= " WARNING: {$missing} questions imported without answer keys - please review!";
+                                        $message_type = 'warning';
+                                    } elseif ($allow_missing_options && $missing_opts > 0) {
+                                        $message .= " WARNING: {$missing_opts} questions imported with placeholder options - please review!";
                                         $message_type = 'warning';
                                     } else {
                                         $message_type = 'success';
@@ -396,8 +401,22 @@ if (isset($_POST['bulk_upload_questions']) && wp_verify_nonce($_POST['bulk_nonce
                                     $error_details = !empty($result['errors']) ? ' First 3 errors: ' . implode('; ', array_slice($result['errors'], 0, 3)) : '';
                                     $total_parsed = isset($result['total_parsed']) ? $result['total_parsed'] : 0;
                                     $missing = isset($result['missing_answers']) ? $result['missing_answers'] : 0;
+                                    
+                                    // Check for missing options errors
+                                    $has_missing_options_errors = false;
+                                    if (!empty($result['errors'])) {
+                                        foreach ($result['errors'] as $error) {
+                                            if (strpos($error, 'Missing one or more options') !== false) {
+                                                $has_missing_options_errors = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    
                                     if ($missing > 0 && !$allow_without_answers) {
                                         $message = "Found {$total_parsed} questions but {$missing} are missing answer keys. Check the 'Import without answer keys' option to import anyway.";
+                                    } elseif ($has_missing_options_errors && !$allow_missing_options) {
+                                        $message = "Questions were found but some have missing options.$error_details Check the 'Import with missing options' box to import anyway.";
                                     } else {
                                         $message = "Questions were found but could not be imported.$error_details";
                                     }
@@ -2895,6 +2914,13 @@ $current_user = wp_get_current_user();
                         <input type="checkbox" name="import_without_answers" id="import_without_answers" value="1">
                         <label for="import_without_answers" style="font-size: 14px; color: rgba(255,255,255,0.8); cursor: pointer;">
                             Import questions even without answer keys (answers default to 'A' - must be edited later)
+                        </label>
+                    </div>
+                    
+                    <div style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" name="import_with_missing_options" id="import_with_missing_options" value="1">
+                        <label for="import_with_missing_options" style="font-size: 14px; color: rgba(255,255,255,0.8); cursor: pointer;">
+                            Import questions even with missing options (placeholders will be added - must be edited later)
                         </label>
                     </div>
                     

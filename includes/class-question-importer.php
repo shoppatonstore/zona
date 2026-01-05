@@ -487,7 +487,7 @@ class ZonaTech_Question_Importer {
      * @param bool $allow_without_answers If true, import questions even without answers (answer set to '?')
      * @return array Result with success count and errors
      */
-    public function import_to_database($questions, $exam_type, $subject, $year, $allow_without_answers = false) {
+    public function import_to_database($questions, $exam_type, $subject, $year, $allow_without_answers = false, $allow_missing_options = false) {
         global $wpdb;
         $table_questions = $wpdb->prefix . 'zonatech_questions';
         
@@ -495,6 +495,7 @@ class ZonaTech_Question_Importer {
         $errors = array();
         $skipped = 0;
         $missing_answers = 0;
+        $missing_options_count = 0;
         
         foreach ($questions as $number => $question) {
             // Validate question has required fields
@@ -504,10 +505,21 @@ class ZonaTech_Question_Importer {
             }
             
             // Check if we have at least options A-D (E is optional)
-            if (empty($question['option_a']) || empty($question['option_b']) || 
-                empty($question['option_c']) || empty($question['option_d'])) {
-                $errors[] = "Question {$number}: Missing one or more options (A, B, C, D required)";
-                continue;
+            $has_missing_options = empty($question['option_a']) || empty($question['option_b']) || 
+                empty($question['option_c']) || empty($question['option_d']);
+            
+            if ($has_missing_options) {
+                if (!$allow_missing_options) {
+                    $errors[] = "Question {$number}: Missing one or more options (A, B, C, D required)";
+                    continue;
+                } else {
+                    // Fill in placeholder text for missing options
+                    $missing_options_count++;
+                    if (empty($question['option_a'])) $question['option_a'] = '[Option A - to be added]';
+                    if (empty($question['option_b'])) $question['option_b'] = '[Option B - to be added]';
+                    if (empty($question['option_c'])) $question['option_c'] = '[Option C - to be added]';
+                    if (empty($question['option_d'])) $question['option_d'] = '[Option D - to be added]';
+                }
             }
             
             if (empty($question['correct_answer'])) {
@@ -569,7 +581,8 @@ class ZonaTech_Question_Importer {
             'skipped' => $skipped,
             'errors' => $errors,
             'total_parsed' => count($questions),
-            'missing_answers' => $missing_answers
+            'missing_answers' => $missing_answers,
+            'missing_options' => $missing_options_count
         );
     }
     
