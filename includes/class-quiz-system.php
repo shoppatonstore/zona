@@ -35,11 +35,15 @@ class ZonaTech_Quiz_System {
         $user_id = get_current_user_id();
         $exam_type = sanitize_text_field($_POST['exam_type'] ?? '');
         $subject = sanitize_text_field($_POST['subject'] ?? '');
-        $year = intval($_POST['year'] ?? 0);
+        $question_count = intval($_POST['question_count'] ?? 50); // Default 50 questions per quiz
         
-        if (empty($exam_type) || empty($subject) || $year < 2010) {
+        // Validate required parameters (year is no longer required)
+        if (empty($exam_type) || empty($subject)) {
             wp_send_json_error(array('message' => 'Invalid quiz parameters.'));
         }
+        
+        // Limit question count between 10 and 100
+        $question_count = max(10, min(100, $question_count));
         
         // Check access
         $past_questions = ZonaTech_Past_Questions::get_instance();
@@ -53,14 +57,16 @@ class ZonaTech_Quiz_System {
         global $wpdb;
         $table_questions = $wpdb->prefix . 'zonatech_questions';
         
+        // Get random questions for this exam type and subject (from all years)
         $questions = $wpdb->get_results($wpdb->prepare(
             "SELECT id, question_text, option_a, option_b, option_c, option_d 
              FROM $table_questions 
-             WHERE exam_type = %s AND subject = %s AND year = %d 
-             ORDER BY RAND()",
+             WHERE exam_type = %s AND subject = %s 
+             ORDER BY RAND()
+             LIMIT %d",
             $exam_type,
             $subject,
-            $year
+            $question_count
         ));
         
         if (empty($questions)) {
@@ -70,7 +76,7 @@ class ZonaTech_Quiz_System {
         ZonaTech_Activity_Log::log(
             $user_id,
             'quiz_start',
-            sprintf('Started %s %s %d quiz', strtoupper($exam_type), $subject, $year)
+            sprintf('Started %s %s quiz (%d questions)', strtoupper($exam_type), $subject, count($questions))
         );
         
         wp_send_json_success(array(
@@ -78,7 +84,6 @@ class ZonaTech_Quiz_System {
             'total' => count($questions),
             'exam_type' => strtoupper($exam_type),
             'subject' => $subject,
-            'year' => $year,
             'time_limit' => count($questions) * 60 // 1 minute per question
         ));
     }
@@ -93,11 +98,11 @@ class ZonaTech_Quiz_System {
         $user_id = get_current_user_id();
         $exam_type = sanitize_text_field($_POST['exam_type'] ?? '');
         $subject = sanitize_text_field($_POST['subject'] ?? '');
-        $year = intval($_POST['year'] ?? 0);
         $answers = isset($_POST['answers']) ? json_decode(stripslashes($_POST['answers']), true) : array();
         $time_taken = intval($_POST['time_taken'] ?? 0);
         
-        if (empty($exam_type) || empty($subject) || $year < 2010 || empty($answers)) {
+        // Year is no longer required
+        if (empty($exam_type) || empty($subject) || empty($answers)) {
             wp_send_json_error(array('message' => 'Invalid submission data.'));
         }
         
@@ -153,12 +158,12 @@ class ZonaTech_Quiz_System {
         // Save quiz result
         $table_quiz = $wpdb->prefix . 'zonatech_quiz_results';
         
-        // Quiz result data and format types
+        // Quiz result data and format types (year defaults to 0 for combined quizzes)
         $quiz_data = array(
             'user_id' => $user_id,
             'exam_type' => $exam_type,
             'subject' => $subject,
-            'year' => $year,
+            'year' => 0, // No year for combined questions
             'total_questions' => $total,
             'correct_answers' => $correct,
             'wrong_answers' => $wrong,
@@ -185,12 +190,12 @@ class ZonaTech_Quiz_System {
         ZonaTech_Activity_Log::log(
             $user_id,
             'quiz_complete',
-            sprintf('Completed %s %s %d quiz with score: %.2f%%', strtoupper($exam_type), $subject, $year, $score),
+            sprintf('Completed %s %s quiz with score: %.2f%%', strtoupper($exam_type), $subject, $score),
             array('result_id' => $result_id, 'score' => $score)
         );
         
         // Send quiz score email to user
-        $this->send_quiz_score_email($user_id, strtoupper($exam_type), $subject, $year, $score, $correct, $wrong, $total, $this->get_grade($score));
+        $this->send_quiz_score_email($user_id, strtoupper($exam_type), $subject, $score, $correct, $wrong, $total, $this->get_grade($score));
         
         wp_send_json_success(array(
             'result_id' => $result_id,
@@ -342,7 +347,7 @@ class ZonaTech_Quiz_System {
         return 'Keep trying! Review the corrections and try again.';
     }
     
-    private function send_quiz_score_email($user_id, $exam_type, $subject, $year, $score, $correct, $wrong, $total, $grade) {
+    private function send_quiz_score_email($user_id, $exam_type, $subject, $score, $correct, $wrong, $total, $grade) {
         $user = get_user_by('ID', $user_id);
         if (!$user) return;
         
@@ -374,7 +379,7 @@ class ZonaTech_Quiz_System {
                     <p style="color: #ffffff; font-size: 18px; margin-bottom: 20px;">Hi ' . esc_html($first_name) . ',</p>
                     
                     <p style="color: #a1a1aa; font-size: 14px; line-height: 1.6;">
-                        You have completed the <strong style="color: #ffffff;">' . esc_html($exam_type) . ' ' . esc_html($subject) . ' (' . esc_html($year) . ')</strong> practice quiz. Here are your results:
+                        You have completed the <strong style="color: #ffffff;">' . esc_html($exam_type) . ' ' . esc_html($subject) . '</strong> practice quiz. Here are your results:
                     </p>
                     
                     <div style="background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 15px; padding: 30px; margin: 25px 0; text-align: center;">

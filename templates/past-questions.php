@@ -371,21 +371,66 @@ jQuery(document).ready(function($) {
         });
     });
     
-    // Display questions in the container
+    // Display questions in the container with pagination
+    var currentPage = 1;
+    var questionsPerPage = 50;
+    var allQuestions = [];
+    var currentExamType = '';
+    var currentSubject = '';
+    
     function displayQuestions(data) {
-        var container = $('#questions-container');
-        var html = '<div class="glass-card">';
-        html += '<h3 class="text-white"><i class="fas fa-book-open"></i> ' + data.exam_type + ' ' + data.subject + '</h3>';
-        html += '<p class="text-muted mb-2">Total Questions: ' + data.total + '</p>';
+        // Store data for pagination
+        allQuestions = data.questions || [];
+        currentExamType = data.exam_type;
+        currentSubject = data.subject;
+        currentPage = 1;
         
-        if (data.questions && data.questions.length > 0) {
+        renderQuestionsPage();
+    }
+    
+    function renderQuestionsPage() {
+        var container = $('#questions-container');
+        var totalQuestions = allQuestions.length;
+        var totalPages = Math.ceil(totalQuestions / questionsPerPage);
+        var startIdx = (currentPage - 1) * questionsPerPage;
+        var endIdx = Math.min(startIdx + questionsPerPage, totalQuestions);
+        var pageQuestions = allQuestions.slice(startIdx, endIdx);
+        
+        var html = '<div class="glass-card">';
+        
+        // Header with stats
+        html += '<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem;">';
+        html += '<div>';
+        html += '<h3 class="text-white" style="margin: 0;"><i class="fas fa-book-open"></i> ' + currentExamType + ' ' + currentSubject + '</h3>';
+        html += '<p class="text-muted" style="margin: 0.5rem 0 0;">Total Questions: <strong class="text-white">' + totalQuestions + '</strong></p>';
+        html += '</div>';
+        html += '<div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">';
+        html += '<button class="btn btn-primary" onclick="startQuiz(\'' + currentExamType + '\', \'' + currentSubject + '\')">';
+        html += '<i class="fas fa-play"></i> Start Quiz (50 Questions)';
+        html += '</button>';
+        html += '</div>';
+        html += '</div>';
+        
+        // Page info bar
+        if (totalPages > 1) {
+            html += '<div style="background: rgba(139, 92, 246, 0.15); border-radius: 12px; padding: 1rem 1.5rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">';
+            html += '<div class="text-white">';
+            html += '<i class="fas fa-layer-group" style="color: #8b5cf6;"></i> ';
+            html += 'Showing questions <strong>' + (startIdx + 1) + ' - ' + endIdx + '</strong> of <strong>' + totalQuestions + '</strong>';
+            html += '</div>';
+            html += '<div class="text-muted">Page ' + currentPage + ' of ' + totalPages + '</div>';
+            html += '</div>';
+        }
+        
+        if (pageQuestions.length > 0) {
             html += '<div class="questions-list">';
-            $.each(data.questions, function(index, question) {
+            $.each(pageQuestions, function(index, question) {
+                var questionNumber = startIdx + index + 1;
                 var correctAnswer = question.correct_answer ? question.correct_answer.toUpperCase() : '';
                 
-                html += '<div class="question-item glass-effect" style="padding: 1rem; margin-bottom: 1rem; border-radius: 10px;">';
-                html += '<p class="text-white" style="font-weight: 600;"><strong>Q' + (index + 1) + '.</strong> ' + question.question_text + '</p>';
-                html += '<div class="options" style="margin-top: 0.5rem;">';
+                html += '<div class="question-item glass-effect" style="padding: 1.5rem; margin-bottom: 1rem; border-radius: 12px; border: 1px solid rgba(139, 92, 246, 0.2);">';
+                html += '<p class="text-white" style="font-weight: 600; font-size: 1rem; line-height: 1.6;"><span style="display: inline-block; background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; padding: 2px 10px; border-radius: 6px; margin-right: 10px; font-size: 0.85rem;">Q' + questionNumber + '</span>' + question.question_text + '</p>';
+                html += '<div class="options" style="margin-top: 1rem;">';
                 
                 // Options with correct answer highlighting
                 var options = ['A', 'B', 'C', 'D'];
@@ -398,18 +443,25 @@ jQuery(document).ready(function($) {
                 
                 $.each(options, function(i, letter) {
                     var isCorrect = letter === correctAnswer;
-                    var style = isCorrect ? 'color: #22c55e; font-weight: 600;' : '';
-                    var icon = isCorrect ? ' <i class="fas fa-check-circle" style="color: #22c55e;"></i>' : '';
-                    html += '<p style="' + style + '"><strong>' + letter + '.</strong> ' + optionValues[letter] + icon + '</p>';
+                    var bgStyle = isCorrect ? 'background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.3);' : 'background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1);';
+                    var textStyle = isCorrect ? 'color: #22c55e; font-weight: 600;' : 'color: #a1a1aa;';
+                    var letterStyle = isCorrect ? 'background: #22c55e; color: white;' : 'background: rgba(139, 92, 246, 0.2); color: #8b5cf6;';
+                    var icon = isCorrect ? ' <i class="fas fa-check-circle" style="color: #22c55e; margin-left: auto;"></i>' : '';
+                    
+                    html += '<div style="display: flex; align-items: center; padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 0.5rem; ' + bgStyle + '">';
+                    html += '<span style="display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; margin-right: 12px; ' + letterStyle + '">' + letter + '</span>';
+                    html += '<span style="flex: 1; ' + textStyle + '">' + optionValues[letter] + '</span>';
+                    html += icon;
+                    html += '</div>';
                 });
                 
                 html += '</div>';
                 
                 // Show explanation if available
                 if (question.explanation && question.explanation.trim()) {
-                    html += '<div class="explanation-box" style="margin-top: 1rem; padding: 1rem; background: rgba(139, 92, 246, 0.1); border-left: 3px solid #8b5cf6; border-radius: 0 8px 8px 0;">';
-                    html += '<p style="color: #8b5cf6; font-weight: 600; margin-bottom: 0.5rem;"><i class="fas fa-lightbulb"></i> Explanation:</p>';
-                    html += '<p class="text-muted" style="margin: 0;">' + question.explanation + '</p>';
+                    html += '<div class="explanation-box" style="margin-top: 1rem; padding: 1rem 1.25rem; background: rgba(139, 92, 246, 0.1); border-left: 4px solid #8b5cf6; border-radius: 0 10px 10px 0;">';
+                    html += '<p style="color: #8b5cf6; font-weight: 600; margin-bottom: 0.5rem; font-size: 0.9rem;"><i class="fas fa-lightbulb"></i> Explanation</p>';
+                    html += '<p class="text-muted" style="margin: 0; line-height: 1.6;">' + question.explanation + '</p>';
                     html += '</div>';
                 }
                 
@@ -417,19 +469,98 @@ jQuery(document).ready(function($) {
             });
             html += '</div>';
             
-            // Add quiz button
-            html += '<div style="text-align: center; margin-top: 1.5rem;">';
-            html += '<button class="btn btn-primary" onclick="startQuiz(\'' + data.exam_type + '\', \'' + data.subject + '\')">';
-            html += '<i class="fas fa-play"></i> Start Practice Quiz';
+            // Pagination controls
+            if (totalPages > 1) {
+                html += '<div class="pagination-container" style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid rgba(255, 255, 255, 0.1);">';
+                html += '<div style="display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 0.5rem;">';
+                
+                // Previous button
+                if (currentPage > 1) {
+                    html += '<button class="btn btn-secondary pagination-btn" onclick="goToPage(' + (currentPage - 1) + ')" style="padding: 0.75rem 1.25rem;">';
+                    html += '<i class="fas fa-chevron-left"></i> Previous';
+                    html += '</button>';
+                }
+                
+                // Page numbers
+                html += '<div style="display: flex; gap: 0.25rem; align-items: center;">';
+                
+                // Show first page
+                if (currentPage > 3) {
+                    html += '<button class="btn btn-secondary pagination-btn" onclick="goToPage(1)" style="min-width: 44px; padding: 0.75rem;">1</button>';
+                    if (currentPage > 4) {
+                        html += '<span class="text-muted" style="padding: 0 0.5rem;">...</span>';
+                    }
+                }
+                
+                // Show pages around current
+                for (var i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+                    var isActive = i === currentPage;
+                    var btnClass = isActive ? 'btn btn-primary' : 'btn btn-secondary';
+                    html += '<button class="' + btnClass + ' pagination-btn" onclick="goToPage(' + i + ')" style="min-width: 44px; padding: 0.75rem;">' + i + '</button>';
+                }
+                
+                // Show last page
+                if (currentPage < totalPages - 2) {
+                    if (currentPage < totalPages - 3) {
+                        html += '<span class="text-muted" style="padding: 0 0.5rem;">...</span>';
+                    }
+                    html += '<button class="btn btn-secondary pagination-btn" onclick="goToPage(' + totalPages + ')" style="min-width: 44px; padding: 0.75rem;">' + totalPages + '</button>';
+                }
+                
+                html += '</div>';
+                
+                // Next button
+                if (currentPage < totalPages) {
+                    html += '<button class="btn btn-primary pagination-btn" onclick="goToPage(' + (currentPage + 1) + ')" style="padding: 0.75rem 1.25rem;">';
+                    html += 'Next <i class="fas fa-chevron-right"></i>';
+                    html += '</button>';
+                }
+                
+                html += '</div>';
+                
+                // Quick jump
+                html += '<div style="text-align: center; margin-top: 1rem;">';
+                html += '<span class="text-muted" style="margin-right: 0.5rem;">Jump to page:</span>';
+                html += '<select id="page-jump" onchange="goToPage(parseInt(this.value))" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer;">';
+                for (var p = 1; p <= totalPages; p++) {
+                    var selected = p === currentPage ? ' selected' : '';
+                    html += '<option value="' + p + '"' + selected + '>Page ' + p + '</option>';
+                }
+                html += '</select>';
+                html += '</div>';
+                
+                html += '</div>';
+            }
+            
+            // Bottom quiz button
+            html += '<div style="text-align: center; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid rgba(255, 255, 255, 0.1);">';
+            html += '<p class="text-muted" style="margin-bottom: 1rem;">Ready to test your knowledge?</p>';
+            html += '<button class="btn btn-primary btn-lg" onclick="startQuiz(\'' + currentExamType + '\', \'' + currentSubject + '\')" style="padding: 1rem 2rem; font-size: 1.1rem;">';
+            html += '<i class="fas fa-play"></i> Start Practice Quiz (50 Random Questions)';
             html += '</button>';
             html += '</div>';
+            
         } else {
             html += '<p class="text-muted text-center">No questions available for this selection.</p>';
         }
         
         html += '</div>';
         container.html(html);
+        
+        // Scroll to top of questions container
+        $('html, body').animate({
+            scrollTop: container.offset().top - 100
+        }, 300);
     }
+    
+    // Go to specific page (global function for pagination)
+    window.goToPage = function(page) {
+        var totalPages = Math.ceil(allQuestions.length / questionsPerPage);
+        if (page >= 1 && page <= totalPages) {
+            currentPage = page;
+            renderQuestionsPage();
+        }
+    };
     
     // Show payment prompt (category-based)
     function showPaymentPrompt(examType, subject, category, categoryName, price) {

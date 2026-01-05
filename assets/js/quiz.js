@@ -233,9 +233,8 @@
             $(document).on('click', '#start-quiz-btn', function() {
                 const examType = $(this).data('exam');
                 const subject = $(this).data('subject');
-                const year = $(this).data('year');
                 
-                self.startQuiz(examType, subject, year);
+                self.startQuiz(examType, subject);
             });
             
             // Answer selection
@@ -269,8 +268,8 @@
             });
         },
         
-        // Start quiz
-        startQuiz: function(examType, subject, year) {
+        // Start quiz - no longer requires year
+        startQuiz: function(examType, subject) {
             const self = this;
             const container = $('#questions-container');
             
@@ -284,7 +283,7 @@
                     nonce: zonatech_ajax.nonce,
                     exam_type: examType,
                     subject: subject,
-                    year: year
+                    question_count: 50 // Default 50 questions per quiz
                 },
                 success: function(response) {
                     if (response.success) {
@@ -306,14 +305,14 @@
             });
         },
         
-        // Render quiz
+        // Render quiz - no year display
         renderQuiz: function(data) {
             const container = $('#questions-container');
             let html = `
                 <div class="quiz-mode">
                     <div class="quiz-header glass-card">
                         <div class="quiz-info">
-                            <h3>${data.exam_type} ${data.subject} Quiz - ${data.year}</h3>
+                            <h3>${data.exam_type} ${data.subject} Quiz</h3>
                             <p>Questions: ${data.total}</p>
                         </div>
                         <div class="quiz-timer">
@@ -406,7 +405,7 @@
             $('#answered-count').text(answered);
         },
         
-        // Submit quiz
+        // Submit quiz - no year required
         submitQuiz: function() {
             const self = this;
             clearInterval(this.timer);
@@ -424,7 +423,6 @@
                     nonce: zonatech_ajax.nonce,
                     exam_type: this.currentQuiz.exam_type.toLowerCase(),
                     subject: this.currentQuiz.subject,
-                    year: this.currentQuiz.year,
                     answers: JSON.stringify(this.answers),
                     time_taken: timeTaken
                 },
